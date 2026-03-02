@@ -1,15 +1,15 @@
-"""
-UniGuru Source Verification Engine — Hardened v2
-===================================================
+﻿"""
+UniGuru Source Verification Engine - Hardened v3
+================================================
 Classifies sources into three tiers:
-    VERIFIED  — Official, authoritative, confirmed source
-    PARTIAL   — Plausibly reliable but incomplete/unconfirmed
-    UNVERIFIED — Unknown, anonymous, or non-authoritative
+    VERIFIED   - Official, authoritative, confirmed source
+    PARTIAL    - Source exists but is not fully canonical
+    UNVERIFIED - Unknown, anonymous, or non-authoritative
 
-Response format (enforced):
-    VERIFIED   -> "Based on verified source: [source name]"
-    PARTIAL    -> "This information is partially verified from: [source]"
-    UNVERIFIED -> "I cannot verify this information from current knowledge."
+Truth policy:
+    VERIFIED   -> allowed
+    PARTIAL    -> allowed only with explicit disclaimer
+    UNVERIFIED -> always refused
 """
 
 import re
@@ -38,7 +38,7 @@ class SourceVerificationResult:
         self.source_name = source_name
         self.reason = reason
         self.formatted_response = formatted_response
-        self.allowed = allowed   # Only True for VERIFIED and PARTIAL (with disclaimer)
+        self.allowed = allowed
 
     def to_dict(self) -> dict:
         return {
@@ -58,19 +58,16 @@ class SourceVerificationResult:
 
 class SourceVerifier:
     """
-    Hardened Source Verification Engine v2.
+    Hardened Source Verification Engine v3.
 
     Rules:
-    - VERIFIED   -> Only allowed for confident answers (no extra disclaimer needed).
-    - PARTIAL    -> Allowed but must include disclaimer.
+    - VERIFIED   -> Allowed with verified prefix.
+    - PARTIAL    -> Allowed only with disclaimer.
     - UNVERIFIED -> Must refuse answer.
 
-    Also maintains backward-compatible static methods used by legacy retrieval.
+    Also maintains backward-compatible static methods used by retrieval.
     """
 
-    # ------------------------------------------------------------------ #
-    #  Domain Classification Tables                                        #
-    # ------------------------------------------------------------------ #
     VERIFIED_DOMAINS = [
         ".edu",
         ".gov",
@@ -90,7 +87,6 @@ class SourceVerifier:
     ]
 
     VERIFIED_SOURCE_NAMES = [
-        # Jain canonical sources
         "tattvartha sutra",
         "acharanga sutra",
         "uttaradhyayana sutra",
@@ -98,19 +94,19 @@ class SourceVerifier:
         "kalpa sutra",
         "adi purana",
         "karmagranthas",
-        # Swaminarayan canonical sources
         "vachanamrut",
         "shikshapatri",
         "swamini vato",
         "bhaktachintamani",
         "purushottam prakash",
         "chosath pad",
-        # Academic / trusted publications
         "sacred books of the east",
         "encyclopaedia britannica",
         "encyclopaedia of jainism",
         "baps akshar-purushottam darshan",
         "uniguru kb",
+        "gurukul curriculum",
+        "gurukul verified text",
     ]
 
     PARTIAL_INDICATORS = [
@@ -120,6 +116,21 @@ class SourceVerifier:
         "translation note",
         "oral tradition",
         "tradition holds",
+    ]
+
+    UNCERTAIN_INDICATORS = [
+        "maybe",
+        "possibly",
+        "uncertain",
+        "unconfirmed",
+        "might be",
+        "not sure",
+        "probably",
+        "i think",
+        "guesstimate",
+        "not certain",
+        "likely",
+        "perhaps",
     ]
 
     UNVERIFIED_PATTERNS = [
@@ -139,50 +150,53 @@ class SourceVerifier:
         r"substack",
     ]
 
-    # ------------------------------------------------------------------ #
-    #  PRIMARY PUBLIC INTERFACE (new hardened API)                         #
-    # ------------------------------------------------------------------ #
     def verify_source(
         self,
         source_name: str,
         source_url: Optional[str] = None,
         content: Optional[str] = None,
     ) -> SourceVerificationResult:
-        """
-        Verify a source by name and optional URL/content.
-        Returns a SourceVerificationResult.
-        """
+        """Verify a source by name and optional URL/content."""
         name_lower = source_name.lower().strip()
         url_lower = (source_url or "").lower().strip()
         content_lower = (content or "").lower()
 
         if self._is_unverified(name_lower, url_lower):
             return self._make_result(
-                VerificationStatus.UNVERIFIED, source_name,
-                "Source matches unverified domain or pattern."
+                VerificationStatus.UNVERIFIED,
+                source_name,
+                "Source matches unverified domain or pattern.",
+            )
+
+        if self._is_uncertain(content_lower):
+            return self._make_result(
+                VerificationStatus.UNVERIFIED,
+                source_name,
+                "Verification uncertain. Refusing answer by truth-gate policy.",
             )
 
         if self._is_verified_canonical(name_lower, url_lower):
             return self._make_result(
-                VerificationStatus.VERIFIED, source_name,
-                "Source matches canonical verified list."
+                VerificationStatus.VERIFIED,
+                source_name,
+                "Source matches canonical verified list.",
             )
 
-        if self._is_partial(name_lower, url_lower, content_lower):
+        if self._is_partial(name_lower, content_lower):
             return self._make_result(
-                VerificationStatus.PARTIAL, source_name,
-                "Source is plausible but not fully verified."
+                VerificationStatus.PARTIAL,
+                source_name,
+                "Source is plausible but not fully verified.",
             )
 
         return self._make_result(
-            VerificationStatus.UNVERIFIED, source_name,
-            "Source could not be matched to any known classification."
+            VerificationStatus.UNVERIFIED,
+            source_name,
+            "Source could not be matched to any known classification.",
         )
 
     def verify_from_kb_file(self, kb_file_path: str) -> SourceVerificationResult:
-        """
-        Verify a source from YAML frontmatter of a KB markdown file.
-        """
+        """Verify a source from YAML frontmatter of a KB markdown file."""
         try:
             with open(kb_file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -193,47 +207,54 @@ class SourceVerifier:
 
         frontmatter = self._extract_frontmatter(content)
         vs_raw = frontmatter.get("verification_status", "").upper()
-        source_name = frontmatter.get("source", frontmatter.get("title", "Unknown Source"))
-        source_url = frontmatter.get("url", "")
+        source_name = str(frontmatter.get("source") or frontmatter.get("title") or "Unknown Source")
+        source_url = str(frontmatter.get("url") or "")
 
         if vs_raw == "VERIFIED":
-            return self._make_result(VerificationStatus.VERIFIED, source_name,
-                                     "KB file declares VERIFIED status.")
-        elif vs_raw == "PARTIAL":
-            return self._make_result(VerificationStatus.PARTIAL, source_name,
-                                     "KB file declares PARTIAL status.")
-        elif vs_raw == "UNVERIFIED":
-            return self._make_result(VerificationStatus.UNVERIFIED, source_name,
-                                     "KB file declares UNVERIFIED status.")
+            return self._make_result(
+                VerificationStatus.VERIFIED,
+                source_name,
+                "KB file declares VERIFIED status.",
+            )
+        if vs_raw == "PARTIAL":
+            return self._make_result(
+                VerificationStatus.PARTIAL,
+                source_name,
+                "KB file declares PARTIAL status.",
+            )
+        if vs_raw == "UNVERIFIED":
+            return self._make_result(
+                VerificationStatus.UNVERIFIED,
+                source_name,
+                "KB file declares UNVERIFIED status.",
+            )
 
         return self.verify_source(source_name, source_url, content)
 
     def build_answer_with_disclaimer(
         self, answer_content: str, verification_result: SourceVerificationResult
     ) -> str:
-        """
-        Prepend the formatted verification statement to the answer content.
-        Raises ValueError for UNVERIFIED sources (must not call this in that case).
-        """
+        """Prepend the verification prefix to answer content."""
         if not verification_result.allowed:
-            raise ValueError(
-                "Cannot build answer for UNVERIFIED source. Must refuse answer."
-            )
-        disclaimer = verification_result.formatted_response
-        return f"{disclaimer}\n\n{answer_content}"
+            raise ValueError("Cannot build answer for UNVERIFIED source. Must refuse answer.")
+        prefix = self.verification_prefix(verification_result.status, verification_result.source_name)
+        return f"{prefix}\n\n{answer_content}"
 
-    # ------------------------------------------------------------------ #
-    #  BACKWARD-COMPATIBLE STATIC INTERFACE (used by retrieval engine)     #
-    # ------------------------------------------------------------------ #
+    @staticmethod
+    def verification_prefix(status: VerificationStatus, source_name: str) -> str:
+        if status == VerificationStatus.VERIFIED:
+            return f"Based on verified source: {source_name}"
+        if status == VerificationStatus.PARTIAL:
+            return f"This information is partially verified from: {source_name}"
+        return "Verification status: UNVERIFIED"
+
     @staticmethod
     def verify(retrieval_result: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Legacy static interface: enhances retrieval result with verification metadata.
-        """
+        """Legacy static interface: enhances retrieval result with verification metadata."""
         if not retrieval_result.get("verified"):
             retrieval_result["truth_declaration"] = "UNVERIFIED"
             retrieval_result["verification_status"] = VerificationStatus.UNVERIFIED.value
-            retrieval_result["formatted_response"] = "I cannot verify this information from current knowledge."
+            retrieval_result["formatted_response"] = "Verification status: UNVERIFIED"
             retrieval_result["allowed"] = False
             return retrieval_result
 
@@ -250,22 +271,22 @@ class SourceVerifier:
             retrieval_result["truth_declaration"] = "VERIFIED_PARTIAL"
             retrieval_result["verification_level"] = "MEDIUM"
             retrieval_result["verification_status"] = VerificationStatus.PARTIAL.value
-            retrieval_result["formatted_response"] = f"This information is partially verified from: {source}"
+            retrieval_result["formatted_response"] = (
+                f"This information is partially verified from: {source}"
+            )
             retrieval_result["allowed"] = True
         else:
             retrieval_result["truth_declaration"] = "UNVERIFIED"
             retrieval_result["verification_level"] = "LOW"
             retrieval_result["verification_status"] = VerificationStatus.UNVERIFIED.value
-            retrieval_result["formatted_response"] = "I cannot verify this information from current knowledge."
+            retrieval_result["formatted_response"] = "Verification status: UNVERIFIED"
             retrieval_result["allowed"] = False
 
         return retrieval_result
 
     @staticmethod
     def verify_retrieval_trace(trace: Dict[str, Any], min_confidence: float = 0.5) -> Dict[str, Any]:
-        """
-        Normalizes retrieval trace output and runs verification with confidence gate.
-        """
+        """Normalizes retrieval trace output and runs verification with confidence gate."""
         confidence = float(trace.get("confidence", 0.0) or 0.0)
         source_file = trace.get("kb_file")
         payload = {
@@ -273,13 +294,10 @@ class SourceVerifier:
             "source_file": source_file,
             "author": "UniGuru KB",
             "confidence": confidence,
-            "confidence_threshold": min_confidence
+            "confidence_threshold": min_confidence,
         }
         return SourceVerifier.verify(payload)
 
-    # ------------------------------------------------------------------ #
-    #  PRIVATE HELPERS                                                     #
-    # ------------------------------------------------------------------ #
     def _is_unverified(self, name_lower: str, url_lower: str) -> bool:
         combined = name_lower + " " + url_lower
         return any(re.search(p, combined) for p in self.UNVERIFIED_PATTERNS)
@@ -293,11 +311,16 @@ class SourceVerifier:
                 return True
         return False
 
-    def _is_partial(self, name_lower: str, url_lower: str, content_lower: str) -> bool:
+    def _is_partial(self, name_lower: str, content_lower: str) -> bool:
+        if not name_lower and not content_lower:
+            return False
         for indicator in self.PARTIAL_INDICATORS:
             if indicator in name_lower or indicator in content_lower:
                 return True
         return False
+
+    def _is_uncertain(self, content_lower: str) -> bool:
+        return any(indicator in content_lower for indicator in self.UNCERTAIN_INDICATORS)
 
     def _make_result(
         self, status: VerificationStatus, source_name: str, reason: str
@@ -309,7 +332,7 @@ class SourceVerifier:
             formatted = f"This information is partially verified from: {source_name}"
             allowed = True
         else:
-            formatted = "I cannot verify this information from current knowledge."
+            formatted = "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
             allowed = False
 
         return SourceVerificationResult(
@@ -331,15 +354,13 @@ class SourceVerifier:
                 if not in_fm:
                     in_fm = True
                     continue
-                else:
-                    break
+                break
             if in_fm and ":" in stripped:
                 key, _, value = stripped.partition(":")
                 result[key.strip().lower()] = value.strip()
         return result
 
 
-# ---- Module-level singleton ------------------------------------------- #
 _verifier_instance = SourceVerifier()
 
 

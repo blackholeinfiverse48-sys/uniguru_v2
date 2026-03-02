@@ -71,7 +71,10 @@ class TestUniGuruBridgeIntegration(unittest.TestCase):
         
         self.assertEqual(sealed["decision"], "block", "UNVERIFIED must trigger block.")
         self.assertEqual(sealed["status_action"], "REFUSE")
-        self.assertEqual(sealed["data"]["response_content"], "I cannot verify this information from current knowledge.")
+        self.assertEqual(
+            sealed["data"]["response_content"],
+            "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
+        )
 
     def test_forwarding_structure(self):
         """GAP 4: Test that forwarded responses are processed for sealing."""

@@ -1,77 +1,70 @@
-import time
+﻿import time
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from uniguru.enforcement.seal import EnforcementSealer
-from uniguru.verifier.source_verifier import SourceVerifier, VerificationStatus
+from uniguru.verifier.source_verifier import SourceVerifier
+
+
+UNVERIFIED_REFUSAL = "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
+
 
 class SovereignEnforcement:
     """
-    Upgraded Enforcement Layer.
-    Mandatory Global Verification and Cryptographic Sealing.
+    Upgraded enforcement layer.
+    Mandatory global verification and cryptographic sealing.
     """
+
     def __init__(self):
         self.sealer = EnforcementSealer()
         self.verifier = SourceVerifier()
 
     def process_and_seal(self, decision_schema: Dict[str, Any], request_id: str) -> Dict[str, Any]:
-        """
-        Implements the Pipeline: Verify -> Enforce -> Seal -> Return.
-        """
-        # 1. Global Verification Check
-        content = decision_schema.get("data", {}).get("response_content", "")
-        if not content and "legacy_response" in decision_schema:
-            # Handle forwarded responses from UniGuru Backend
-            content = str(decision_schema["legacy_response"])
+        """Implements: verify -> enforce -> seal -> return."""
+        data = decision_schema.setdefault("data", {})
+        verification_meta = data.get("verification", {}) if isinstance(data, dict) else {}
+        content = str(data.get("response_content", "") or "")
 
-        # Determine Global Verification Status
-        # If the engine hasn't already verified it, we do a final check.
         v_status = decision_schema.get("verification_status")
         if not v_status:
-            verification = decision_schema.get("data", {}).get("verification", {})
-            truth_decl = verification.get("truth_declaration")
-            if truth_decl in {"VERIFIED", "VERIFIED_PARTIAL"}:
-                v_status = "VERIFIED" if truth_decl == "VERIFIED" else "PARTIAL"
+            truth_decl = str(verification_meta.get("truth_declaration", ""))
+            if truth_decl == "VERIFIED":
+                v_status = "VERIFIED"
+            elif truth_decl == "VERIFIED_PARTIAL":
+                v_status = "PARTIAL"
             elif decision_schema.get("decision") == "forward":
                 v_status = "PARTIAL"
             else:
                 v_status = "UNVERIFIED"
-        
-        data = decision_schema.setdefault("data", {})
-        verification_meta = data.get("verification", {}) if isinstance(data, dict) else {}
-        content = str(data.get("response_content", ""))
 
-        # Policy Enforcement based on Status
+        decision_schema["verification_status"] = v_status
+
         if v_status == "VERIFIED":
             decision_schema["status_action"] = "ALLOW"
-            declaration = self._resolve_declaration(
-                verification_meta,
-                default_source="UniGuru KB",
-                partial=False
-            )
-            if content and not content.startswith("Based on verified source:"):
-                data["response_content"] = f"{declaration}\n\n{content}"
+            prefix = self._resolve_declaration(verification_meta, default_source="UniGuru KB", partial=False)
+            decision_schema["verification_prefix"] = prefix
+            data["response_content"] = self._prefix_if_missing(content, prefix)
+
         elif v_status == "PARTIAL":
             decision_schema["status_action"] = "ALLOW_WITH_DISCLAIMER"
-            declaration = self._resolve_declaration(
+            prefix = self._resolve_declaration(
                 verification_meta,
                 default_source="Production UniGuru backend",
-                partial=True
+                partial=True,
             )
-            decision_schema["disclaimer"] = declaration
-            if content and not content.startswith("This information is partially verified from:"):
-                data["response_content"] = f"{declaration}\n\n{content}"
+            decision_schema["verification_prefix"] = prefix
+            decision_schema["disclaimer"] = prefix
+            data["response_content"] = self._prefix_if_missing(content, prefix)
+
         else:
-            # UNVERIFIED
             decision_schema["status_action"] = "REFUSE"
             decision_schema["decision"] = "block"
-            decision_schema["reason"] = "Refined refusal: Source could not be verified by UniGuru Governance."
-            decision_schema["data"] = {"response_content": "I cannot verify this information from current knowledge."}
+            decision_schema["reason"] = "Refusal: source verification uncertain or unavailable."
+            decision_schema["verification_prefix"] = "Verification status: UNVERIFIED"
+            decision_schema["data"] = {"response_content": UNVERIFIED_REFUSAL}
 
-        # 2. Cryptographic Sealing (GAP 1 Fix)
-        # We seal AFTER the final verification and decision.
         final_content = str(decision_schema.get("data", {}).get("response_content", "BLOCKED"))
         signature = self.sealer.create_signature(final_content, request_id)
-        
+
         decision_schema["enforcement_signature"] = signature
         decision_schema["enforced"] = True
         decision_schema["request_id"] = request_id
@@ -80,17 +73,21 @@ class SovereignEnforcement:
         return decision_schema
 
     def verify_bridge_seal(self, response: Dict[str, Any]) -> bool:
-        """
-        Used by the Bridge to verify the signature before returning to user.
-        """
+        """Used by bridge to verify signature before returning to caller."""
         signature = response.get("enforcement_signature")
         request_id = response.get("request_id")
         content = str(response.get("data", {}).get("response_content", "BLOCKED"))
-        
         if not signature:
             return False
-            
         return self.sealer.verify_signature(content, request_id, signature)
+
+    @staticmethod
+    def _prefix_if_missing(content: str, prefix: str) -> str:
+        if not content:
+            return prefix
+        if content.startswith(prefix):
+            return content
+        return f"{prefix}\n\n{content}"
 
     @staticmethod
     def _resolve_declaration(verification_meta: Dict[str, Any], default_source: str, partial: bool) -> str:
@@ -100,19 +97,15 @@ class SovereignEnforcement:
         if (not partial) and formatted.startswith("Based on verified source:"):
             return formatted
 
-        source = (
-            verification_meta.get("source_name")
-            or verification_meta.get("source_file")
-            or default_source
-        )
+        source = verification_meta.get("source_name") or verification_meta.get("source_file") or default_source
         if partial:
             return f"This information is partially verified from: {source}"
         return f"Based on verified source: {source}"
 
+
 class UniGuruEnforcement(SovereignEnforcement):
-    """
-    Backward-compatible adapter expected by the RuleEngine.
-    """
+    """Backward-compatible adapter expected by RuleEngine."""
+
     def validate_and_bind(self, decision_schema: Dict[str, Any]) -> Dict[str, Any]:
         request_id = (
             decision_schema.get("data", {}).get("request_id")

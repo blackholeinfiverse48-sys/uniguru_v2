@@ -46,7 +46,15 @@ class FileParser:
                         if ":" in line:
                             k, v = line.split(":", 1)
                             key = k.strip().lower()
-                            if key in ["author", "publication", "title", "source"]:
+                            if key in [
+                                "author",
+                                "publication",
+                                "title",
+                                "source",
+                                "verification_status",
+                                "category",
+                                "url",
+                            ]:
                                 metadata[key] = v.strip()
                     return {"content": body, "metadata": metadata}
             

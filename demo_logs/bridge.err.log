@@ -1,5 +1,5 @@
 [WEB-RETRIEVER] BeautifulSoup not available — falling back to regex extraction.
-INFO:     Started server process [20440]
+INFO:     Started server process [21272]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)

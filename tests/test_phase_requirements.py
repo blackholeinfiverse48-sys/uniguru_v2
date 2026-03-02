@@ -88,5 +88,6 @@ def test_unverified_refusal_exact_text():
     }
     sealed = enforcer.process_and_seal(decision, "req-refuse-1")
     assert sealed["decision"] == "block"
-    assert sealed["data"]["response_content"] == "I cannot verify this information from current knowledge."
+    assert sealed["data"]["response_content"] == "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
+    assert sealed["verification_prefix"] == "Verification status: UNVERIFIED"
     assert enforcer.verify_bridge_seal(sealed) is True

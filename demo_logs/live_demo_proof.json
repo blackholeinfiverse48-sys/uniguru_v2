@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-02-27T04:11:44Z",
+  "timestamp_utc": "2026-02-27T04:16:59Z",
   "production_health_status": "OK",
   "bridge_health_status": "ok",
   "bridge_target": "http://127.0.0.1:8000/api/v1/chat/new",

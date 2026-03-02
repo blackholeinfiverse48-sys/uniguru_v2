@@ -1,0 +1,245 @@
+{
+  "runtime_health": {
+    "status": "ok",
+    "bridge_version": "3.0.0",
+    "production_target": "http://127.0.0.1:9000/api/v1/chat/new",
+    "external_llm_calls": false
+  },
+  "phases": {
+    "verified_query": {
+      "decision": "answer",
+      "severity": 0.0,
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false
+      },
+      "reason": "Knowledge found in local KB and verified.",
+      "data": {
+        "response_content": "Based on verified source: rishabhadeva_adinatha.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\n# Jain Knowledge Base \u2014 Rishabhadeva (Adinatha)\n\n---\ntitle: Rishabhadeva \u2014 The First Tirthankara\nsource: \u0100di Pur\u0101\u1e47a (Jinasena); Kalpa Sutra; Rishabhdev Foundation\nurl: https://www.jainworld.com/rishabhadeva\nverification_status: VERIFIED\ncategory: jain\n---\n\n## Content\n\nRishabhadeva (also called Adinatha \u2014 \"First Lord\") is the first of the 24 Tirthankaras of the current cosmic time cycle according to Jain cosmology.\n\n**Mythological Status:**\nHe is credited as the founder of human civilization:\n- Taught humans to cook and eat food (previously humans ate only tubers and fruit)\n- Introduced agriculture, crafts, and governance\n- Established the first kingdom and social order\n\n**Renunciation and Tapas:**\nAfter ruling for countless years, Rishabhadeva renounced his kingdom and became a naked ascetic (digambara). He meditated without eating for one year and eventually attained Kevala Jnana (omniscience).\n\n**Mention in Other Traditions:**\nThe Bhagavata Purana (a Hindu text) describes Rishabha as an avatara of Vishnu who taught yoga and renunciation \u2014 demonstrating Jain influence on broader Indian religious tradition.\n\n**Symbol:**\nRishabhadeva's symbol is the Bull (Vrishabha/nandi). His yaksha (attendant deity) is Gomukha and his yakshi is Chakreshvari.\n\n**Ashta Pratiharya (Eight Auspicious Events at Enlightenment):**\nWhen a Tirthankara attains Kevala Jnana, eight supernatural manifestations appear including celestial music, fragrant rain, and divine light.\n\n**Legacy:**\nRishabhadeva's teachings were preserved through his 84 disciples (ganadharas) of whom Pundarika was the chief.\n\nUniGuru Citation: Adi Purana (Jinasena); Kalpa Sutra of Bhadrabahu, Life of Rishabhadeva section\n",
+        "rule_triggered": "RetrievalRule",
+        "request_id": "4af5bd48-102b-4330-9dce-83fd9dec9fee",
+        "trace": [
+          {
+            "rule": "SafetyRule",
+            "action": "allow",
+            "reason": "No unsafe content detected.",
+            "latency_ms": 0.017
+          },
+          {
+            "rule": "AuthorityRule",
+            "action": "allow",
+            "reason": "No significant authority pressure detected.",
+            "latency_ms": 0.033
+          },
+          {
+            "rule": "DelegationRule",
+            "action": "allow",
+            "reason": "No delegation attempt detected.",
+            "latency_ms": 0.014
+          },
+          {
+            "rule": "EmotionalRule",
+            "action": "allow",
+            "reason": "Emotionally neutral input.",
+            "latency_ms": 0.017
+          },
+          {
+            "rule": "AmbiguityRule",
+            "action": "allow",
+            "reason": "Query clarity verified.",
+            "latency_ms": 0.016
+          },
+          {
+            "rule": "RetrievalRule",
+            "action": "answer",
+            "reason": "Knowledge found in local KB and verified.",
+            "latency_ms": 9.611
+          }
+        ],
+        "retrieval_trace": {
+          "engine": "AdvancedRetriever_v2",
+          "kb_path": "C:\\Users\\Yass0\\OneDrive\\Desktop\\TASK14\\uniguru\\knowledge",
+          "match_found": true,
+          "confidence": 0.3333333333333333,
+          "kb_file": "rishabhadeva_adinatha.md",
+          "sources_consulted": [
+            "jain"
+          ]
+        },
+        "verification": {
+          "verified": true,
+          "source_file": "rishabhadeva_adinatha.md",
+          "author": "UniGuru KB",
+          "confidence": 0.3333333333333333,
+          "confidence_threshold": 0.3,
+          "truth_declaration": "VERIFIED",
+          "verification_level": "HIGH",
+          "verification_status": "VERIFIED",
+          "formatted_response": "Based on verified source: rishabhadeva_adinatha.md",
+          "allowed": true
+        }
+      },
+      "enforced": true,
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "verification_prefix": "Based on verified source: rishabhadeva_adinatha.md",
+      "enforcement_signature": "2a294b287897710ea9735e874669430b23a0e8ebc0ef81671047a5e6a3b17bf5",
+      "request_id": "d46f99f2-37aa-4324-a8ec-7111e3d1cd66",
+      "sealed_at": "2026-03-02T04:58:10Z",
+      "total_latency_ms": 9.89,
+      "latency_ms": 9.96,
+      "trace_id": "d46f99f2-37aa-4324-a8ec-7111e3d1cd66"
+    },
+    "partial_query": {
+      "decision": "forward",
+      "severity": 0.1,
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false
+      },
+      "reason": "Query is safe and clear. Ready for legacy system processing.",
+      "data": {
+        "response_content": "This information is partially verified from: Production UniGuru backend\n\nThis is a verified response from the production UniGuru backend about Gurukul.",
+        "verification": {
+          "source_name": "Production UniGuru backend",
+          "truth_declaration": "VERIFIED_PARTIAL",
+          "formatted_response": "This information is partially verified from: Production UniGuru backend"
+        }
+      },
+      "enforced": true,
+      "verification_status": "PARTIAL",
+      "status_action": "ALLOW_WITH_DISCLAIMER",
+      "verification_prefix": "This information is partially verified from: Production UniGuru backend",
+      "disclaimer": "This information is partially verified from: Production UniGuru backend",
+      "enforcement_signature": "9f5ea364d189a5a1048a28f48662ae45e2cf56e0a5af2c32f2a6290ff8493157",
+      "request_id": "ed703f38-e1a4-486d-b8ea-46b84da6cab3",
+      "sealed_at": "2026-03-02T04:58:10Z",
+      "total_latency_ms": 7.97,
+      "legacy_response": {
+        "answer": "This is a verified response from the production UniGuru backend about Gurukul.",
+        "status": "success",
+        "data": {
+          "response": "This is a verified response from the production UniGuru backend about Gurukul."
+        }
+      },
+      "forwarded_to": "http://127.0.0.1:9000/api/v1/chat/new",
+      "latency_ms": 13.77,
+      "trace_id": "ed703f38-e1a4-486d-b8ea-46b84da6cab3"
+    },
+    "unverified_query": {
+      "decision": "block",
+      "verification_status": "UNVERIFIED",
+      "reason": "Refusal: source verification uncertain or unavailable.",
+      "data": {
+        "response_content": "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
+      },
+      "status_action": "REFUSE",
+      "verification_prefix": "Verification status: UNVERIFIED",
+      "enforcement_signature": "5e6dd2bba8d523a8ba9aa480c5bc848c87f4a59381356cc4d2f893ee0a318baa",
+      "enforced": true,
+      "request_id": "89724139-3cb7-45e7-b275-6fd19aa16a3a",
+      "sealed_at": "2026-03-02T04:58:10Z",
+      "latency_ms": 10.54,
+      "trace_id": "89724139-3cb7-45e7-b275-6fd19aa16a3a"
+    },
+    "gurukul_query": {
+      "integration": "gurukul",
+      "student_id": "stu-101",
+      "class_id": "logic-1",
+      "session_id": "g1",
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "response": {
+        "decision": "answer",
+        "severity": 0.0,
+        "governance_flags": {
+          "authority": false,
+          "delegation": false,
+          "emotional": false,
+          "ambiguity": false,
+          "safety": false
+        },
+        "reason": "Knowledge found in local KB and verified.",
+        "data": {
+          "response_content": "Based on verified source: nyaya_logic.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\n---\nauthor: Gurukul Traditional School\npublication: Gurukul Press\ntitle: Logic and Reasoning (Nyaya)\ncategory: gurukul\n---\n\nNyaya is the school of logic and epistemology in Indian philosophy. \nIt defines four valid sources of knowledge (Pramanas):\n1. Pratyaksha (Perception)\n2. Anumana (Inference)\n3. Upamana (Comparison)\n4. Shabda (Word/Testimony)\n\nLogical reasoning involves a five-membered syllogism (Avayava):\n- Pratijna (Proposition)\n- Hetu (Reason)\n- Udaharana (Example)\n- Upanaya (Application)\n- Nigamana (Conclusion)\n",
+          "rule_triggered": "RetrievalRule",
+          "request_id": "95686387-dba2-40d1-85d9-76ec3f4622b6",
+          "trace": [
+            {
+              "rule": "SafetyRule",
+              "action": "allow",
+              "reason": "No unsafe content detected.",
+              "latency_ms": 0.008
+            },
+            {
+              "rule": "AuthorityRule",
+              "action": "allow",
+              "reason": "No significant authority pressure detected.",
+              "latency_ms": 0.014
+            },
+            {
+              "rule": "DelegationRule",
+              "action": "allow",
+              "reason": "No delegation attempt detected.",
+              "latency_ms": 0.007
+            },
+            {
+              "rule": "EmotionalRule",
+              "action": "allow",
+              "reason": "Emotionally neutral input.",
+              "latency_ms": 0.008
+            },
+            {
+              "rule": "AmbiguityRule",
+              "action": "allow",
+              "reason": "Query clarity verified.",
+              "latency_ms": 0.007
+            },
+            {
+              "rule": "RetrievalRule",
+              "action": "answer",
+              "reason": "Knowledge found in local KB and verified.",
+              "latency_ms": 7.238
+            }
+          ],
+          "retrieval_trace": {
+            "engine": "AdvancedRetriever_v2",
+            "kb_path": "C:\\Users\\Yass0\\OneDrive\\Desktop\\TASK14\\uniguru\\knowledge",
+            "match_found": true,
+            "confidence": 0.6666666666666666,
+            "kb_file": "nyaya_logic.md",
+            "sources_consulted": [
+              "gurukul"
+            ]
+          },
+          "verification": {
+            "verified": true,
+            "source_file": "nyaya_logic.md",
+            "author": "UniGuru KB",
+            "confidence": 0.6666666666666666,
+            "confidence_threshold": 0.3,
+            "truth_declaration": "VERIFIED",
+            "verification_level": "HIGH",
+            "verification_status": "VERIFIED",
+            "formatted_response": "Based on verified source: nyaya_logic.md",
+            "allowed": true
+          }
+        },
+        "enforced": true,
+        "verification_status": "VERIFIED",
+        "status_action": "ALLOW",
+        "verification_prefix": "Based on verified source: nyaya_logic.md",
+        "enforcement_signature": "ecc219ebd6a94bb8ff4294cc82ce84c028c61ccacd75e84e7a310fcaf0030c56",
+        "request_id": "95686387-dba2-40d1-85d9-76ec3f4622b6",
+        "sealed_at": "2026-03-02T04:58:10Z",
+        "total_latency_ms": 7.35
+      }
+    }
+  }
+}

@@ -13,7 +13,7 @@ async def chat(request: Dict[str, Any]):
     # Flexible request handling
     message = request.get("message") or request.get("query") or "No message"
     return {
-        "groq_answer": f"Legacy Production Response for: {message}",
+        "production_answer": f"Legacy Production Response for: {message}",
         "retrieved_chunks": [
             {"content": "Legacy source snippet", "source": "VectorDB_v1"}
         ],
