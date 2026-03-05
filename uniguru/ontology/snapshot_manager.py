@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
-from uniguru.ontology.graph import get_frozen_concepts
+from uniguru.ontology.graph import OntologyGraph, get_frozen_concepts
 from uniguru.ontology.schema import Concept, concept_from_dict, concept_to_dict
 
 
@@ -17,7 +17,7 @@ SNAPSHOT_V1_PATH = SNAPSHOT_DIR / "snapshot_v1.json"
 class SnapshotManager:
     @staticmethod
     def _canonical_json(data: Dict[str, Any]) -> str:
-        return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        return json.dumps(data, sort_keys=True)
 
     @staticmethod
     def _sorted_concepts(concepts: Iterable[Concept]) -> List[Dict[str, Any]]:
@@ -35,10 +35,8 @@ class SnapshotManager:
         return payload
 
     def hash_payload(self, payload: Dict[str, Any]) -> str:
-        core = {
-            "snapshot_version": payload["snapshot_version"],
-            "concepts": payload["concepts"],
-        }
+        core = dict(payload)
+        core.pop("snapshot_hash", None)
         return hashlib.sha256(self._canonical_json(core).encode("utf-8")).hexdigest()
 
     def save_snapshot(
@@ -62,12 +60,11 @@ class SnapshotManager:
             )
 
         # Validate each concept against frozen schema.
-        for concept_row in payload.get("concepts", []):
-            concept_from_dict(concept_row)
+        concepts = [concept_from_dict(concept_row) for concept_row in payload.get("concepts", [])]
+        OntologyGraph(concepts)
 
         return payload
 
     def create_default_snapshot_v1(self) -> Dict[str, Any]:
         concepts = get_frozen_concepts()
         return self.save_snapshot(concepts=concepts, snapshot_version=1, path=SNAPSHOT_V1_PATH)
-

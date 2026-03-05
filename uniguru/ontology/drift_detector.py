@@ -26,6 +26,40 @@ def detect_semantic_drift(
         if current is None:
             continue
 
+        if bool(previous.get("immutable")):
+            immutable_changes = []
+            if previous["parent_id"] != current["parent_id"]:
+                immutable_changes.append("parent_change")
+            if previous["canonical_name"] != current["canonical_name"]:
+                immutable_changes.append("canonical_name_change")
+            if str(previous["domain"]) != str(current["domain"]):
+                immutable_changes.append("domain_reassignment")
+            if int(current["truth_level"]) < int(previous["truth_level"]):
+                immutable_changes.append("truth_downgrade")
+
+            if immutable_changes:
+                rejected = True
+                violations.append(
+                    {
+                        "type": "immutable_concept_violation",
+                        "concept_id": concept_id,
+                        "fields": immutable_changes,
+                        "previous": {
+                            "parent_id": previous["parent_id"],
+                            "canonical_name": previous["canonical_name"],
+                            "truth_level": previous["truth_level"],
+                            "domain": previous["domain"],
+                        },
+                        "current": {
+                            "parent_id": current["parent_id"],
+                            "canonical_name": current["canonical_name"],
+                            "truth_level": current["truth_level"],
+                            "domain": current["domain"],
+                        },
+                    }
+                )
+                continue
+
         if previous["parent_id"] != current["parent_id"] and not version_bumped:
             violations.append(
                 {

@@ -14,6 +14,9 @@ from uniguru.core.rules import (
 )
 from uniguru.enforcement.enforcement import UniGuruEnforcement
 from uniguru.ontology.registry import OntologyRegistry
+from uniguru.reasoning.concept_resolver import ConceptResolver
+from uniguru.reasoning.graph_reasoner import GraphReasoner
+from uniguru.reasoning.reasoning_trace import ReasoningTraceGenerator
 
 
 class RuleEngine:
@@ -30,6 +33,8 @@ class RuleEngine:
         ]
         self.enforcement = UniGuruEnforcement()
         self.ontology_registry = OntologyRegistry()
+        self.concept_resolver = ConceptResolver()
+        self.graph_reasoner = GraphReasoner()
 
     def evaluate(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Production-grade deterministic evaluation pipeline."""
@@ -99,6 +104,16 @@ class RuleEngine:
                 "severity": float(max_severity),
                 "governance_flags": aggregated_flags,
                 "reason": final_result.reason,
+                "pipeline": [
+                    "Input",
+                    "Governance",
+                    "Retrieval",
+                    "Source Verification",
+                    "Concept Resolution",
+                    "Ontology Reasoning",
+                    "Enforcement",
+                    "Response",
+                ],
                 "data": {
                     "response_content": final_result.response_content,
                     "rule_triggered": final_result.rule_name or final_result.__class__.__name__,
@@ -111,9 +126,38 @@ class RuleEngine:
             if final_result.extra_metadata:
                 output["data"].update(final_result.extra_metadata)
 
+            retrieval_trace = output["data"].get("retrieval_trace")
+            reasoning_path = []
+            concept_resolution = None
+            reasoning_trace = None
+            retrieval_succeeded = bool(
+                final_result.action == RuleAction.ANSWER
+                and isinstance(retrieval_trace, dict)
+                and retrieval_trace.get("match_found")
+            )
+            if retrieval_succeeded:
+                concept_resolution = self.concept_resolver.resolve(
+                    query=content,
+                    retrieval_trace=retrieval_trace,
+                )
+                reasoning_path = self.graph_reasoner.reasoning_path_from_domain_root(
+                    concept_id=concept_resolution["concept_id"],
+                    domain=concept_resolution["domain"],
+                )
+                reasoning_trace = ReasoningTraceGenerator.from_reasoning_path(
+                    reasoning_path=reasoning_path,
+                    snapshot_version=concept_resolution["snapshot_version"],
+                    snapshot_hash=concept_resolution["snapshot_hash"],
+                )
+                output["data"]["concept_resolution"] = concept_resolution
+                output["data"]["reasoning_path"] = reasoning_path
+                output["data"]["reasoning_trace"] = reasoning_trace
+
             output["ontology_reference"] = self.ontology_registry.build_reference(
                 decision=output["decision"],
-                trace=output["data"].get("retrieval_trace"),
+                trace=retrieval_trace,
+                resolved_concept=concept_resolution,
+                reasoning_path=reasoning_path,
             )
 
             final_output = self.enforcement.validate_and_bind(output)

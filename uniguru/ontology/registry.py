@@ -31,6 +31,7 @@ class OntologyRegistry:
                 "truth_level": row["truth_level"],
                 "snapshot_version": self.snapshot["snapshot_version"],
                 "snapshot_hash": self.snapshot["snapshot_hash"],
+                "reasoning_path": [],
             }
             for concept_id, row in self._concept_index.items()
         }
@@ -38,8 +39,12 @@ class OntologyRegistry:
     def default_reference(self) -> Dict[str, Any]:
         return {
             "concept_id": DOMAIN_CONCEPT_MAP["core"],
+            "canonical_name": self._concept_index[DOMAIN_CONCEPT_MAP["core"]]["canonical_name"],
+            "domain": "core",
+            "truth_level": self._concept_index[DOMAIN_CONCEPT_MAP["core"]]["truth_level"],
             "snapshot_version": self.snapshot["snapshot_version"],
             "snapshot_hash": self.snapshot["snapshot_hash"],
+            "reasoning_path": [],
         }
 
     def _resolve_domain_from_trace(self, trace: Optional[Dict[str, Any]]) -> str:
@@ -49,14 +54,33 @@ class OntologyRegistry:
         valid_domains = sorted({domain for domain in consulted if domain in DOMAIN_CONCEPT_MAP})
         return valid_domains[0] if valid_domains else "core"
 
-    def build_reference(self, decision: str, trace: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def build_reference(
+        self,
+        decision: str,
+        trace: Optional[Dict[str, Any]],
+        resolved_concept: Optional[Dict[str, Any]] = None,
+        reasoning_path: Optional[list] = None,
+    ) -> Dict[str, Any]:
         if decision != "answer":
             return self.default_reference()
-        domain = self._resolve_domain_from_trace(trace)
+        if resolved_concept:
+            concept_id = resolved_concept["concept_id"]
+            row = self._concept_index.get(concept_id)
+            if row is None:
+                raise ValueError(f"Unknown resolved concept_id: {concept_id}")
+            domain = row["domain"]
+        else:
+            domain = self._resolve_domain_from_trace(trace)
+            concept_id = DOMAIN_CONCEPT_MAP[domain]
+            row = self._concept_index[concept_id]
         return {
-            "concept_id": DOMAIN_CONCEPT_MAP[domain],
+            "concept_id": concept_id,
+            "canonical_name": row["canonical_name"],
+            "domain": domain,
+            "truth_level": row["truth_level"],
             "snapshot_version": self.snapshot["snapshot_version"],
             "snapshot_hash": self.snapshot["snapshot_hash"],
+            "reasoning_path": reasoning_path or [],
         }
 
     def get_registry_contract(self, ontology_reference: Dict[str, Any]) -> Dict[str, Any]:
@@ -67,5 +91,6 @@ class OntologyRegistry:
         concept_id = ontology_reference.get("concept_id")
         if concept_id not in self._registry_index:
             raise ValueError(f"Unknown concept_id in ontology reference: {concept_id}")
-        return dict(self._registry_index[concept_id])
-
+        contract = dict(self._registry_index[concept_id])
+        contract["reasoning_path"] = list(ontology_reference.get("reasoning_path") or [])
+        return contract
