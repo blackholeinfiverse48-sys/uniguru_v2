@@ -27,6 +27,29 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
+STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "what",
+    "who",
+    "when",
+    "where",
+    "why",
+    "how",
+    "with",
+    "from",
+    "this",
+    "that",
+    "have",
+    "has",
+    "had",
+    "are",
+    "was",
+    "were",
+    "will",
+}
+
 try:
     from bs4 import BeautifulSoup
     _BS4_AVAILABLE = True
@@ -208,8 +231,24 @@ class WebRetriever:
             }
         ]
 
-        verified_results = []
+        query_tokens = {
+            token
+            for token in re.sub(r"[^\w\s]", " ", query.lower()).split()
+            if len(token) > 2 and token not in STOPWORDS
+        }
+        if not query_tokens:
+            return []
+
+        scored_candidates = []
         for res in candidate_results:
+            candidate_text = f"{res['title']} {res['snippet']}".lower()
+            overlap = sum(1 for token in query_tokens if token in candidate_text)
+            if overlap > 0:
+                scored_candidates.append((overlap, res))
+
+        scored_candidates.sort(key=lambda row: row[0], reverse=True)
+        verified_results = []
+        for _, res in scored_candidates:
             url = res["url"]
 
             # 1. Domain gate

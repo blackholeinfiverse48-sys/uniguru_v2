@@ -1,0 +1,101 @@
+[
+  {
+    "case": "Web-only Unverified (randomblog.xyz)",
+    "query": "My Thoughts on Jainism",
+    "response": {
+      "decision": "answer",
+      "answer": "Based on verified source: Jainism \u2014 Wikipedia\n\nJainism is an ancient Indian religion emphasizing non-violence, many-sidedness of truth, and non-attachment.",
+      "session_id": null,
+      "reason": "Web retrieval succeeded with status VERIFIED.",
+      "ontology_reference": {
+        "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+        "domain": "core",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 0
+      },
+      "reasoning_trace": {
+        "sources_consulted": [
+          "core",
+          "web",
+          "https://en.wikipedia.org/wiki/Jainism"
+        ],
+        "retrieval_confidence": 1.0,
+        "ontology_domain": "core",
+        "verification_status": "VERIFIED",
+        "verification_details": "VERIFIED"
+      },
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "enforcement_signature": "cbfe937587429e5719b92003d549fac2c8386ab9ee08857f8177a4ccee4110df",
+      "request_id": "5ee8ca72-692a-4860-990a-e61b5e96351c",
+      "sealed_at": "2026-03-06T04:14:17Z",
+      "latency_ms": 7.36
+    }
+  },
+  {
+    "case": "Web-only Verified (Stanford)",
+    "query": "Jainism Stanford University",
+    "allow_web": true,
+    "response": {
+      "decision": "answer",
+      "answer": "Based on verified source: Jainism \u2014 Stanford University Religious Studies\n\nJainism traces its origins to the prehistoric Tirthankara Rishabhadeva. The 24th Tirthankara, Mahavira, is historically attested.",
+      "session_id": null,
+      "reason": "Web retrieval succeeded with status VERIFIED.",
+      "ontology_reference": {
+        "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+        "domain": "core",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 0
+      },
+      "reasoning_trace": {
+        "sources_consulted": [
+          "core",
+          "web",
+          "https://www.stanford.edu/religious-studies/jainism"
+        ],
+        "retrieval_confidence": 1.0,
+        "ontology_domain": "core",
+        "verification_status": "VERIFIED",
+        "verification_details": "VERIFIED"
+      },
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "enforcement_signature": "387237cbcb00bbca0b1ec2f6d603c63ef56c688f06d1261e9a84a8f2064e327e",
+      "request_id": "fc8c53e5-22f4-4a96-a7e1-5ad9ddb52888",
+      "sealed_at": "2026-03-06T04:14:17Z",
+      "latency_ms": 10.89
+    }
+  }
+]

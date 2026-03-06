@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+from uniguru.ontology.exceptions import OntologyGraphValidationError
 from uniguru.ontology.schema import Concept, concept_from_dict
 
 
@@ -204,11 +205,11 @@ class OntologyGraph:
     def __init__(self, concepts: Iterable[Concept]):
         self.concepts = tuple(concepts)
         if len({concept.concept_id for concept in self.concepts}) != len(self.concepts):
-            raise ValueError("Duplicate concept_id detected in ontology graph.")
+            raise OntologyGraphValidationError("Duplicate concept_id detected in ontology graph.")
         self.by_id: Dict[str, Concept] = {concept.concept_id: concept for concept in self.concepts}
         self.children: Dict[Optional[str], List[str]] = {}
         self._index_children()
-        self._validate()
+        self.validate_structure()
 
     def _index_children(self) -> None:
         for concept in self.concepts:
@@ -216,42 +217,53 @@ class OntologyGraph:
         for child_ids in self.children.values():
             child_ids.sort()
 
-    def _validate(self) -> None:
+    def validate_structure(self) -> None:
         allowed_domains: Set[str] = {"quantum", "jain", "swaminarayan", "gurukul", "core"}
 
         roots = [concept.concept_id for concept in self.concepts if concept.parent_id is None]
         if len(roots) != 1:
-            raise ValueError(
+            raise OntologyGraphValidationError(
                 f"Single root constraint violated. Expected 1 root, found {len(roots)}."
             )
 
         for concept in self.concepts:
             if not concept.immutable:
-                raise ValueError(f"Concept is not immutable: {concept.concept_id}")
+                raise OntologyGraphValidationError(f"Concept is not immutable: {concept.concept_id}")
             if concept.parent_id is not None and concept.parent_id not in self.by_id:
-                raise ValueError(
+                raise OntologyGraphValidationError(
                     f"Parent concept missing for {concept.concept_id}: {concept.parent_id}"
                 )
             if concept.parent_id == concept.concept_id:
-                raise ValueError(f"Concept cannot parent itself: {concept.concept_id}")
+                raise OntologyGraphValidationError(
+                    f"Invalid parent-child loop: concept {concept.concept_id} points to itself."
+                )
             if concept.domain.value not in allowed_domains:
-                raise ValueError(
+                raise OntologyGraphValidationError(
                     f"Invalid domain assignment for {concept.concept_id}: {concept.domain.value}"
                 )
         self._ensure_acyclic()
 
     def _ensure_acyclic(self) -> None:
         visited: Dict[str, int] = {}
+        lineage: List[str] = []
 
         def dfs(concept_id: str) -> None:
             state = visited.get(concept_id, 0)
             if state == 1:
-                raise ValueError(f"Ontology cycle detected at {concept_id}")
+                if concept_id in lineage:
+                    start = lineage.index(concept_id)
+                    cycle_path = lineage[start:] + [concept_id]
+                    rendered = " -> ".join(cycle_path)
+                else:
+                    rendered = concept_id
+                raise OntologyGraphValidationError(f"Ontology cycle detected: {rendered}")
             if state == 2:
                 return
             visited[concept_id] = 1
+            lineage.append(concept_id)
             for child_id in self.children.get(concept_id, []):
                 dfs(child_id)
+            lineage.pop()
             visited[concept_id] = 2
 
         for concept_id in self.by_id:

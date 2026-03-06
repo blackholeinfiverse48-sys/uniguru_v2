@@ -2,7 +2,7 @@ from uniguru.core.rules.base import BaseRule, RuleContext, RuleResult, RuleActio
 from uniguru.retrieval.retriever import retrieve_knowledge_with_trace
 from uniguru.verifier.source_verifier import SourceVerifier
 
-KB_CONFIDENCE_THRESHOLD = 0.3
+KB_CONFIDENCE_THRESHOLD = 0.45
 UNVERIFIED_REFUSAL = "I cannot verify this information from current knowledge."
 
 class RetrievalRule(BaseRule):

@@ -5,7 +5,7 @@ from uniguru.enforcement.seal import EnforcementSealer
 from uniguru.verifier.source_verifier import SourceVerifier
 
 
-UNVERIFIED_REFUSAL = "Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
+UNVERIFIED_REFUSAL = "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge."
 
 
 class SovereignEnforcement:

@@ -1,0 +1,168 @@
+{
+  "verified_kb_response": {
+    "decision": "answer",
+    "answer": "Based on verified source: qubit.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\nTitle: Nielsen & Chuang Core Concepts\nSource(s): Nielsen, M. A. & Chuang, I. L., \"Quantum Computation and Quantum Information\" (2010)\nAuthors: Michael A. Nielsen; Isaac L. Chuang (summarized)\nYear: 2010\nDomain: Quantum Foundations / Quantum Information\nIngestion date: 2026-02-06\n\nDefinitions\n- Qubit: Two-level quantum system represented by state vector $|\\psi\\rangle=\\alpha|0\\rangle+\\beta|1\\rangle$.\n- Density operator: $\\rho$ describing mixed states; $\\rho=\\sum_i p_i|\\psi_i\\rangle\\langle\\psi_i|$.\n- Unitary evolution: Closed-system dynamics described by $\\rho\\mapsto U\\rho U^{\\dagger}$.\n- Measurement (projective): Born rule $p_i=\\langle\\psi|\\Pi_i|\\psi\\rangle$ for projector $\\Pi_i$.\n- Entanglement: Non-separable joint states with correlations beyond classical mixtures.\n\nKey Concepts\n- State space: Hilbert space formalism and tensor-product composition.\n- Quantum gates: Reversible operations implemented by unitary matrices.\n- Quantum circuits: Composition of gates to implement algorithms.\n- Quantum error: Decoherence and noise motivating error correction.\n\nLight equation context\n- State normalization: $\\langle\\psi|\\psi\\rangle=1$.\n- Expectation value: $\\langle A\\rangle=\\mathrm{Tr}(\\rho A)$.\n\nConcept explanations\n- Superposition: Linear combination of basis states enabling interference.\n- Measurement collapse (operational): Probabilistic update of state post-measurement.\n- Quantum tomography (summary): Reconstruction of $\\rho$ from measurement statistics.\n\nCitations\n- Nielsen & Chuang (2010). Core textbook treatment of these foundational topics.SSSS\n\n",
+    "session_id": "evidence-1",
+    "reason": "Knowledge found in local KB and verified.",
+    "ontology_reference": {
+      "concept_id": "2200072c-5a0d-4f68-a56a-a0c807f6cf5e",
+      "domain": "quantum",
+      "snapshot_version": 1,
+      "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+      "truth_level": 3
+    },
+    "reasoning_trace": {
+      "sources_consulted": [
+        "quantum"
+      ],
+      "retrieval_confidence": 1.0,
+      "ontology_domain": "quantum",
+      "verification_status": "VERIFIED",
+      "verification_details": "VERIFIED"
+    },
+    "governance_flags": {
+      "authority": false,
+      "delegation": false,
+      "emotional": false,
+      "ambiguity": false,
+      "safety": false,
+      "output_authority_violation": false
+    },
+    "governance_output": {
+      "allowed": true,
+      "reason": "Output governance passed.",
+      "flags": {
+        "output_authority_violation": false
+      }
+    },
+    "verification_status": "VERIFIED",
+    "status_action": "ALLOW",
+    "enforcement_signature": "cf6a11444b98884042f82c66cd43889ec8c6705b5a4cdf8306ebd8f7d2827afd",
+    "request_id": "492b0758-a75e-4ef9-b3fb-e12fa5dcffc8",
+    "sealed_at": "2026-03-06T04:05:28Z",
+    "latency_ms": 7.72
+  },
+  "unverified_web_response": {
+    "decision": "block",
+    "answer": "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+    "session_id": "evidence-2",
+    "reason": "Refusal: source verification uncertain or unavailable.",
+    "ontology_reference": {
+      "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+      "domain": "core",
+      "snapshot_version": 1,
+      "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+      "truth_level": 0
+    },
+    "reasoning_trace": {
+      "sources_consulted": [],
+      "retrieval_confidence": 0.0,
+      "ontology_domain": "core",
+      "verification_status": "UNVERIFIED",
+      "verification_details": "UNVERIFIED"
+    },
+    "governance_flags": {
+      "authority": false,
+      "delegation": false,
+      "emotional": false,
+      "ambiguity": false,
+      "safety": false,
+      "output_authority_violation": false
+    },
+    "governance_output": {
+      "allowed": true,
+      "reason": "Output governance passed.",
+      "flags": {
+        "output_authority_violation": false
+      }
+    },
+    "verification_status": "UNVERIFIED",
+    "status_action": "REFUSE",
+    "enforcement_signature": "8082283fa6167385a65b5478240f59dae92f4caa5900deeb2f46e7cb54b3946c",
+    "request_id": "079bd8ce-89de-42ce-964f-12fe66ad7934",
+    "sealed_at": "2026-03-06T04:05:28Z",
+    "latency_ms": 6.99
+  },
+  "unknown_question": {
+    "decision": "block",
+    "answer": "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+    "session_id": "evidence-3",
+    "reason": "Refusal: source verification uncertain or unavailable.",
+    "ontology_reference": {
+      "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+      "domain": "core",
+      "snapshot_version": 1,
+      "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+      "truth_level": 0
+    },
+    "reasoning_trace": {
+      "sources_consulted": [],
+      "retrieval_confidence": 0.0,
+      "ontology_domain": "core",
+      "verification_status": "UNVERIFIED",
+      "verification_details": "UNVERIFIED"
+    },
+    "governance_flags": {
+      "authority": false,
+      "delegation": false,
+      "emotional": false,
+      "ambiguity": false,
+      "safety": false,
+      "output_authority_violation": false
+    },
+    "governance_output": {
+      "allowed": true,
+      "reason": "Output governance passed.",
+      "flags": {
+        "output_authority_violation": false
+      }
+    },
+    "verification_status": "UNVERIFIED",
+    "status_action": "REFUSE",
+    "enforcement_signature": "7f0af149dd14838f481058d01d382583a76749f724c8eed6f59ab6b102f59134",
+    "request_id": "b0c7a362-0049-4d65-997c-7dc6645747d2",
+    "sealed_at": "2026-03-06T04:05:28Z",
+    "latency_ms": 6.7
+  },
+  "blocked_unsafe_query": {
+    "decision": "block",
+    "answer": "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+    "session_id": "evidence-4",
+    "reason": "Refusal: source verification uncertain or unavailable.",
+    "ontology_reference": {
+      "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+      "domain": "core",
+      "snapshot_version": 1,
+      "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+      "truth_level": 0
+    },
+    "reasoning_trace": {
+      "sources_consulted": [],
+      "retrieval_confidence": 0.0,
+      "ontology_domain": "core",
+      "verification_status": "UNVERIFIED",
+      "verification_details": "UNVERIFIED"
+    },
+    "governance_flags": {
+      "authority": false,
+      "delegation": false,
+      "emotional": false,
+      "ambiguity": false,
+      "safety": true,
+      "output_authority_violation": false
+    },
+    "governance_output": {
+      "allowed": true,
+      "reason": "Output governance passed.",
+      "flags": {
+        "output_authority_violation": false
+      }
+    },
+    "verification_status": "UNVERIFIED",
+    "status_action": "REFUSE",
+    "enforcement_signature": "470586c77fa6663466c09f395108483ede52aa997a77634544101d6cea6c73ee",
+    "request_id": "1a1e86fa-6d9f-4e7d-b919-3acd1693ce14",
+    "sealed_at": "2026-03-06T04:05:28Z",
+    "latency_ms": 0.02
+  }
+}

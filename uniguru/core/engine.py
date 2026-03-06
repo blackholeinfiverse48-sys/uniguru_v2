@@ -36,7 +36,12 @@ class RuleEngine:
         self.concept_resolver = ConceptResolver()
         self.graph_reasoner = GraphReasoner()
 
-    def evaluate(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        apply_enforcement: bool = True,
+    ) -> Dict[str, Any]:
         """Production-grade deterministic evaluation pipeline."""
         request_id = str(uuid.uuid4())
         context = RuleContext(
@@ -152,6 +157,20 @@ class RuleEngine:
                 output["data"]["concept_resolution"] = concept_resolution
                 output["data"]["reasoning_path"] = reasoning_path
                 output["data"]["reasoning_trace"] = reasoning_trace
+                output["data"]["ontology_relationships"] = {
+                    "traversed_nodes": len(reasoning_path),
+                    "path": [
+                        {
+                            "concept_id": node.get("concept_id"),
+                            "parent_child_chain_node": node.get("canonical_name"),
+                        }
+                        for node in reasoning_path
+                    ],
+                }
+                if isinstance(retrieval_trace, dict):
+                    consulted = list(retrieval_trace.get("sources_consulted") or [])
+                    consulted.extend(["ontology_registry", "ontology_graph"])
+                    retrieval_trace["sources_consulted"] = sorted(set(consulted))
 
             output["ontology_reference"] = self.ontology_registry.build_reference(
                 decision=output["decision"],
@@ -160,11 +179,13 @@ class RuleEngine:
                 reasoning_path=reasoning_path,
             )
 
-            final_output = self.enforcement.validate_and_bind(output)
-
             total_latency_ms = (time.perf_counter() - start_time_total) * 1000
-            final_output["total_latency_ms"] = round(float(total_latency_ms), 2)
+            output["total_latency_ms"] = round(float(total_latency_ms), 2)
+            if not apply_enforcement:
+                return output
 
+            final_output = self.enforcement.validate_and_bind(output)
+            final_output["total_latency_ms"] = output["total_latency_ms"]
             return final_output
 
         except Exception as e:

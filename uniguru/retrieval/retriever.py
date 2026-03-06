@@ -1,6 +1,9 @@
-﻿import os
+import os
 import re
-from typing import Dict, Optional, Tuple, Any, List
+from typing import Any, Dict, List, Optional, Tuple
+
+from uniguru.reasoning.concept_resolver import ConceptResolver
+from uniguru.reasoning.graph_reasoner import GraphReasoner
 
 # Paths for knowledge bases
 _MODULE_DIR = os.path.dirname(__file__)
@@ -11,6 +14,34 @@ KB_PATHS: Dict[str, str] = {
     "jain": os.path.normpath(os.path.join(_KB_ROOT, "jain")),
     "swaminarayan": os.path.normpath(os.path.join(_KB_ROOT, "swaminarayan")),
     "gurukul": os.path.normpath(os.path.join(_KB_ROOT, "gurukul")),
+}
+
+STOPWORDS = {
+    "a",
+    "an",
+    "the",
+    "is",
+    "are",
+    "was",
+    "were",
+    "what",
+    "which",
+    "who",
+    "when",
+    "where",
+    "why",
+    "how",
+    "about",
+    "for",
+    "to",
+    "in",
+    "on",
+    "of",
+    "and",
+    "or",
+    "me",
+    "tell",
+    "explain",
 }
 
 
@@ -27,7 +58,7 @@ class AdvancedRetriever:
         self.file_map: Dict[str, str] = {}
         self._load_memory()
 
-    def _load_memory(self):
+    def _load_memory(self) -> None:
         for kb_name, kb_path in KB_PATHS.items():
             if not os.path.exists(kb_path):
                 continue
@@ -47,7 +78,9 @@ class AdvancedRetriever:
         """Retrieves top N documents matching the query."""
         query_lower = query.lower()
         clean_query = re.sub(r"[^\w\s]", "", query_lower)
-        tokens = clean_query.split()
+        tokens = [token for token in clean_query.split() if token and token not in STOPWORDS]
+        if not tokens:
+            return []
 
         matches = []
         for keyword, content in self.knowledge_map.items():
@@ -57,19 +90,23 @@ class AdvancedRetriever:
             keyword_match = sum(1 for t in kw_tokens if t in tokens)
             content_match = sum(1 for t in tokens if t in content_lower)
 
-            total_match = keyword_match + content_match
+            if keyword_match == 0 and content_match < 2:
+                continue
 
-            if total_match > 0:
-                confidence = total_match / len(tokens) if tokens else 0.0
-                matches.append(
-                    {
-                        "content": content,
-                        "confidence": confidence,
-                        "keyword": keyword,
-                        "source": self.source_map.get(keyword, "unknown"),
-                        "file": self.file_map.get(keyword, "unknown"),
-                    }
-                )
+            keyword_coverage = keyword_match / len(kw_tokens) if kw_tokens else 0.0
+            content_density = min(content_match / len(tokens), 1.0)
+            confidence = min((0.7 * keyword_coverage) + (0.3 * content_density), 1.0)
+            matches.append(
+                {
+                    "content": content,
+                    "confidence": confidence,
+                    "keyword": keyword,
+                    "keyword_match_count": keyword_match,
+                    "query_token_count": len(tokens),
+                    "source": self.source_map.get(keyword, "unknown"),
+                    "file": self.file_map.get(keyword, "unknown"),
+                }
+            )
 
         matches.sort(key=lambda x: x["confidence"], reverse=True)
         return matches[0 : self.top_n]
@@ -112,6 +149,9 @@ class AdvancedRetriever:
             "metadata": {
                 "sources_consulted": sources_list,
                 "top_match": primary.get("file"),
+                "top_keyword": primary.get("keyword"),
+                "keyword_match_count": primary.get("keyword_match_count", 0),
+                "query_token_count": primary.get("query_token_count", 0),
                 "top_confidence": primary.get("confidence", 0.0),
             },
         }
@@ -141,8 +181,23 @@ def retrieve_knowledge_with_trace(query: str) -> Tuple[Optional[str], Dict[str, 
             "match_found": True,
             "confidence": float(metadata.get("top_confidence", 0.0)),
             "kb_file": metadata.get("top_match"),
+            "matched_keyword": metadata.get("top_keyword"),
+            "keyword_match_count": int(metadata.get("keyword_match_count", 0)),
+            "query_token_count": int(metadata.get("query_token_count", 0)),
             "sources_consulted": metadata.get("sources_consulted", []),
         }
+        concept_resolution = ConceptResolver().resolve(query=query, retrieval_trace=trace)
+        reasoning_path = GraphReasoner().reasoning_path_from_domain_root(
+            concept_id=concept_resolution["concept_id"],
+            domain=concept_resolution["domain"],
+        )
+        trace["ontology_domain"] = concept_resolution["domain"]
+        trace["ontology_concept_id"] = concept_resolution["concept_id"]
+        trace["ontology_relationship_depth"] = len(reasoning_path)
+        trace["ontology_relationship_chain"] = [node["concept_id"] for node in reasoning_path]
+        trace["sources_consulted"] = sorted(
+            set(list(trace["sources_consulted"]) + ["ontology_registry", "ontology_graph"])
+        )
         return result.get("content"), trace
 
     trace = {
@@ -151,6 +206,6 @@ def retrieve_knowledge_with_trace(query: str) -> Tuple[Optional[str], Dict[str, 
         "match_found": False,
         "confidence": 0.0,
         "kb_file": None,
-        "sources_consulted": [],
+        "sources_consulted": ["ontology_registry", "ontology_graph"],
     }
     return None, trace

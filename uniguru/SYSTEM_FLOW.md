@@ -6,55 +6,58 @@
 [ USER REQUEST ]
       |
       v
-[ LAYER 1: INPUT LAYER ] 
-      | (Sanitization & Normalization)
+[ LAYER 1: API / INPUT LAYER ]
+      | (Sanitization & Schema Validation)
       v
-[ LAYER 2: GOVERNANCE PRE-CHECK ] ---> [ BLOCK ] (If "sudo", "hack", etc.)
-      | (Safety Validation)
+[ LAYER 2: GOVERNANCE PRE-CHECK ] ---> [ BLOCK ] (If "sudo", malicious, etc.)
+      | (Safety Invariant Check)
       v
-[ LAYER 3: REASONING LAYER ]
-      | (Intent Classification: Ambiguity? Delegation? Emotional?)
-      |
-      +----[ RULE TRIGGERS ] --------> [ CANNED RESPONSE ]
-      | (Priority-based fall-through)
+[ LAYER 3: RETRIEVAL LAYER ]
+      | (Local KB Match in master_index.json)
+      | (Optional: Verified Web Retrieval)
       v
-[ LAYER 4: RETRIEVAL LAYER ]
-      | (Keyword lookup in Quantum_KB)
-      |
-      +----[ KB MATCH ] -------------> [ FORMATTED EVIDENCE ]
-      |
+[ LAYER 4: ONTOLOGY RESOLUTION ]
+      | (Map result to concept_id & Domain)
+      | (Graph Path Reasoning)
       v
-[ LAYER 2: GOVERNANCE POST-AUDIT ] --> [ BLOCK ] (If Logic leaked authority)
-      | (Output Verification)
+[ LAYER 5: TRUTH VERIFICATION ]
+      | (Source Audit: VERIFIED/PARTIAL/UNVERIFIED)
       v
-[ LAYER 5: ENFORCEMENT LAYER ]
-      | (Final Authority Lock)
+[ LAYER 6: ENFORCEMENT LAYER ]
+      | (Final Authority Lock & Sealing)
       v
-[ STRUCTURED RESPONSE ]
+[ LAYER 7: GOVERNANCE POST-AUDIT ] --> [ BLOCK ] (If output leaked authority)
+      | (Action/Pattern Check)
+      v
+[ STRUCTURED REASONING RESPONSE ]
 ```
 
 ## 2. Layer Definitions
 
-### Layer 1 — Input Layer
-Acts as the entry gateway. It receives the raw JSON payload and extracts the `query.text` field. It is responsible for basic string cleaning.
+### Layer 1 — API / Input Layer
+Receives the raw JSON payload (`user_query`). Ensures clean service boundaries and extracts parameters like `allow_web_retrieval`.
 
-### Layer 2 — Governance Layer (Pre/Post)
-*   **Pre-Check**: Scans user input for malicious patterns (e.g., code injection, system commands).
-*   **Post-Audit**: Scans system-generated output to ensure no internal secrets or "Authority Hallucinations" (e.g., "I have updated your account") are leaked.
+### Layer 2 — Governance Layer (Pre-Check)
+Scans user input for malicious patterns (e.g., code injection, system commands) and classifies intent.
 
-### Layer 3 — Reasoning Layer
-The core decision engine. It uses deterministic functions to check if the user is asking for something prohibited (Academic Dishonesty) or ambiguous. It prioritizes "Safety rejections" over "Answering."
+### Layer 3 — Retrieval Layer
+Uses the `KnowledgeRetriever` to pull ground truth from the physical filesystem. If enabled, performs search-and-verify against allowed web domains.
 
-### Layer 4 — Retrieval Layer
-Uses the `KnowledgeRetriever` to pull ground truth from the physical filesystem. It calculates a confidence score based on keyword coverage.
+### Layer 4 — Ontology Resolution
+Anchors the retrieved data to the UniGuru Ontology Backbone. It identifies the `concept_id`, `version`, and calculates the `reasoning_path` from the domain root.
 
-### Layer 5 — Enforcement Layer
-The final layer. It receives the outcome of the logic and the governance audit. If any previous layer flagged a violation, Enforcement forces a "Fail-Closed" state.
+### Layer 5 — Truth Verification
+Assigns a truth level and status to the response. Only `VERIFIED` or `PARTIAL` results are allowed to proceed. `UNVERIFIED` results trigger a fail-closed refusal.
 
-## 3. Failure Scenarios
-*   **Logic Leakage**: Reasoning layer approves a response, but Governance detects a forbidden keyword. **Result**: Enforcement blocks the response.
-*   **KB Miss**: No keywords match with >= 30% confidence. **Result**: Reasoning falls back to a default "Answering question" response without KB grounding.
+### Layer 6 — Enforcement Layer
+The final gatekeeper. It cryptographically binds the decision and ensures the response is sealed with a signature.
 
-## 4. Debug Strategy
-1.  **Trace Logging**: Each layer must print its decision to `stdout`.
-2.  **Mocking**: Use `Mock` requests to verify that the Governance Pre-check triggers on strings like "sudo rm -rf."
+### Layer 7 — Output Governance (Post-Audit)
+Performs a final audit of the generated string to ensure no system actions or executive authority patterns are leaked to the user.
+
+## 3. Reasoning Trace Components
+Every successful response must include:
+- **Ontology Reference**: Proof of grounding in the registry.
+- **Sources Consulted**: Traceability to physical files or URLs.
+- **Confidence Score**: Deterministic overlap calculation.
+- **Verification Status**: Clear declaration of truth status.

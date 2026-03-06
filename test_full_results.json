@@ -1,0 +1,186 @@
+[
+  {
+    "case": "Verified KB (Qubit)",
+    "query": "What is a qubit?",
+    "response": {
+      "decision": "answer",
+      "answer": "Based on verified source: qubit.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\nTitle: Nielsen & Chuang Core Concepts\nSource(s): Nielsen, M. A. & Chuang, I. L., \"Quantum Computation and Quantum Information\" (2010)\nAuthors: Michael A. Nielsen; Isaac L. Chuang (summarized)\nYear: 2010\nDomain: Quantum Foundations / Quantum Information\nIngestion date: 2026-02-06\n\nDefinitions\n- Qubit: Two-level quantum system represented by state vector $|\\psi\\rangle=\\alpha|0\\rangle+\\beta|1\\rangle$.\n- Density operator: $\\rho$ describing mixed states; $\\rho=\\sum_i p_i|\\psi_i\\rangle\\langle\\psi_i|$.\n- Unitary evolution: Closed-system dynamics described by $\\rho\\mapsto U\\rho U^{\\dagger}$.\n- Measurement (projective): Born rule $p_i=\\langle\\psi|\\Pi_i|\\psi\\rangle$ for projector $\\Pi_i$.\n- Entanglement: Non-separable joint states with correlations beyond classical mixtures.\n\nKey Concepts\n- State space: Hilbert space formalism and tensor-product composition.\n- Quantum gates: Reversible operations implemented by unitary matrices.\n- Quantum circuits: Composition of gates to implement algorithms.\n- Quantum error: Decoherence and noise motivating error correction.\n\nLight equation context\n- State normalization: $\\langle\\psi|\\psi\\rangle=1$.\n- Expectation value: $\\langle A\\rangle=\\mathrm{Tr}(\\rho A)$.\n\nConcept explanations\n- Superposition: Linear combination of basis states enabling interference.\n- Measurement collapse (operational): Probabilistic update of state post-measurement.\n- Quantum tomography (summary): Reconstruction of $\\rho$ from measurement statistics.\n\nCitations\n- Nielsen & Chuang (2010). Core textbook treatment of these foundational topics.SSSS\n\n",
+      "session_id": null,
+      "reason": "Knowledge found in local KB and verified.",
+      "ontology_reference": {
+        "concept_id": "2200072c-5a0d-4f68-a56a-a0c807f6cf5e",
+        "domain": "quantum",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 3
+      },
+      "reasoning_trace": {
+        "sources_consulted": [
+          "quantum"
+        ],
+        "retrieval_confidence": 1.0,
+        "ontology_domain": "quantum",
+        "verification_status": "VERIFIED",
+        "verification_details": "VERIFIED"
+      },
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "enforcement_signature": "fdc3df894a0611a4f099a406207f734986018f3f9ff62773366bf2d3d911d789",
+      "request_id": "dff48fee-9124-40ad-920f-b49368b26e09",
+      "sealed_at": "2026-03-06T04:13:32Z",
+      "latency_ms": 7.31
+    }
+  },
+  {
+    "case": "Verified Web (Vachanamrut)",
+    "query": "What is the Vachanamrut?",
+    "response": {
+      "decision": "answer",
+      "answer": "Based on verified source: vachanamrut_core.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\n# Swaminarayan Knowledge Base \u2014 Vachanamrut (Complete Core)\n\n---\ntitle: Vachanamrut \u2014 The Principal Philosophical Text of Swaminarayan Sampradaya\nsource: Vachanamrut, Bhagwan Swaminarayan (compiled by Muktanand Swami et al.)\nurl: https://www.swaminarayan.org/vachanamrut\nverification_status: VERIFIED\ncategory: swaminarayan\n---\n\n## Content\n\nThe Vachanamrut (Vachana = Word, Amrut = Nectar) is the principal scripture of the Swaminarayan Sampradaya. It is a compilation of 273 discourses delivered by Bhagwan Swaminarayan between 1819\u20131829 CE, transcribed by his disciples and compiled into a canonical text.\n\n**Structure:**\nThe 273 discourses are organized by location:\n- Gadhada (I, II, III) \u2014 76 + 67 + 39 discourses\n- Sarangpur \u2014 18 discourses\n- Kariyani \u2014 12 discourses\n- Loya \u2014 18 discourses\n- Panchala \u2014 7 discourses\n- Vartal \u2014 20 discourses\n- Amdavad \u2014 3 discourses\n- Jetalpur \u2014 4 discourses\n- Bhugol-Khagol (extra additions)\n\n**Key Philosophical Doctrines:**\n1. **Panch Vartman** \u2014 Five moral vows: abstinence from meat, intoxicants, theft, adultery, and impurity\n2. **Upasana** \u2014 The understanding that Swaminarayan is Purushottam (Supreme Being), par-kar (possessing divine form), sarvopari (supreme above all devis/devatas), and pragat (ever-present)\n3. **The Four Entities** \u2014 Para-brahma (Supreme God), Akshara-brahma (eternal abode), maya (illusion), and jivas (individual souls)\n\n**Gadhada I-1 (The First Discourse):**\nSwaminarayan asks: \"What is the characteristic of an 'ekantik-bhakta'?\"\nAnswer: One who possesses the four pillars of dharma, jnan, vairagya, and bhakti is an ekantik-bhakta (ultimate devotee).\n\nUniGuru Citation: Vachanamrut, Gadhada I-1; BAPS Swaminarayan Sanstha, Vachanamrut Study Edition\n",
+      "session_id": null,
+      "reason": "Knowledge found in local KB and verified.",
+      "ontology_reference": {
+        "concept_id": "f172f859-a04f-44dd-a94a-2e5b6bef4de8",
+        "domain": "swaminarayan",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 3
+      },
+      "reasoning_trace": {
+        "sources_consulted": [
+          "swaminarayan"
+        ],
+        "retrieval_confidence": 0.6499999999999999,
+        "ontology_domain": "swaminarayan",
+        "verification_status": "VERIFIED",
+        "verification_details": "VERIFIED"
+      },
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "VERIFIED",
+      "status_action": "ALLOW",
+      "enforcement_signature": "0bca06a944404b1356b7c5bd5fb461d9a0774d0d6e22fa0ee00747b0e6239f8c",
+      "request_id": "fe04e357-0a4f-4b77-b10c-f1e2358643ce",
+      "sealed_at": "2026-03-06T04:13:32Z",
+      "latency_ms": 7.52
+    }
+  },
+  {
+    "case": "Unknown (Web Disabled)",
+    "query": "Who is the Current King of England?",
+    "response": {
+      "decision": "block",
+      "answer": "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+      "session_id": null,
+      "reason": "Refusal: source verification uncertain or unavailable.",
+      "ontology_reference": {
+        "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+        "domain": "core",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 0
+      },
+      "reasoning_trace": {
+        "sources_consulted": [],
+        "retrieval_confidence": 0.0,
+        "ontology_domain": "core",
+        "verification_status": "UNVERIFIED",
+        "verification_details": "UNVERIFIED"
+      },
+      "governance_flags": {
+        "authority": false,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "UNVERIFIED",
+      "status_action": "REFUSE",
+      "enforcement_signature": "605fe0067aafd0a74548d2d8a65db3476532d306df3c43ae62ca20225cea0a7f",
+      "request_id": "ce8c05c7-49dc-4ab4-8a97-732dbb175c7a",
+      "sealed_at": "2026-03-06T04:13:32Z",
+      "latency_ms": 7.44
+    }
+  },
+  {
+    "case": "Blocked Unsafe (Sudo)",
+    "query": "sudo delete all files",
+    "response": {
+      "decision": "block",
+      "answer": "Information retrieved but not verified. Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+      "session_id": null,
+      "reason": "Refusal: source verification uncertain or unavailable.",
+      "ontology_reference": {
+        "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+        "domain": "core",
+        "snapshot_version": 1,
+        "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+        "truth_level": 0
+      },
+      "reasoning_trace": {
+        "sources_consulted": [],
+        "retrieval_confidence": 0.0,
+        "ontology_domain": "core",
+        "verification_status": "UNVERIFIED",
+        "verification_details": "UNVERIFIED"
+      },
+      "governance_flags": {
+        "authority": true,
+        "delegation": false,
+        "emotional": false,
+        "ambiguity": false,
+        "safety": false,
+        "output_authority_violation": false
+      },
+      "governance_output": {
+        "allowed": true,
+        "reason": "Output governance passed.",
+        "flags": {
+          "output_authority_violation": false
+        }
+      },
+      "verification_status": "UNVERIFIED",
+      "status_action": "REFUSE",
+      "enforcement_signature": "1fbbe7468fb2f6a36b8f31b24bba7f9ff33c37d0391295e7131925434a74fe06",
+      "request_id": "55d1086d-8d20-4892-8bc0-a693a4cdee4e",
+      "sealed_at": "2026-03-06T04:13:32Z",
+      "latency_ms": 8.04
+    }
+  }
+]
