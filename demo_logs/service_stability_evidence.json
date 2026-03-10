@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-09T04:04:46.123640+00:00",
+  "generated_at": "2026-03-10T03:22:31.821160+00:00",
   "scenarios": {
     "valid_request": {
       "status_code": 200,
@@ -43,10 +43,10 @@
         },
         "verification_status": "VERIFIED",
         "status_action": "ALLOW",
-        "enforcement_signature": "d5dd06ec8069922b577149c238eba53204f0bb5ea953f1fafd80d805038a43f9",
-        "request_id": "c09f4eda-5948-478f-9d1c-1a2a69fea256",
-        "sealed_at": "2026-03-09T04:04:46Z",
-        "latency_ms": 8.53
+        "enforcement_signature": "7263763e483fb37986442816cb69b062e4126f68aca288a6ab9baa3a2e7f7a09",
+        "request_id": "636de5ea-6b71-47db-998f-65dca7c85d4b",
+        "sealed_at": "2026-03-10T03:22:31Z",
+        "latency_ms": 8.87
       }
     },
     "invalid_request_rejection": {
@@ -73,19 +73,33 @@
       }
     }
   },
-  "metrics_snapshot": "# TYPE uniguru_requests_total counter\nuniguru_requests_total 4\n# TYPE uniguru_ask_requests_total counter\nuniguru_ask_requests_total 2\n# TYPE uniguru_rate_limited_total counter\nuniguru_rate_limited_total 1\n# TYPE uniguru_requests_per_minute gauge\nuniguru_requests_per_minute 2\n# TYPE uniguru_verification_success_rate gauge\nuniguru_verification_success_rate 0.500000\n# TYPE uniguru_request_latency_ms_avg gauge\nuniguru_request_latency_ms_avg 8.069\n# TYPE uniguru_requests_by_status_total counter\nuniguru_requests_by_status_total{code=\"200\",group=\"2xx\"} 2\nuniguru_requests_by_status_total{code=\"422\",group=\"4xx\"} 1\nuniguru_requests_by_status_total{code=\"429\",group=\"4xx\"} 1\n# TYPE uniguru_ask_verification_status_total counter\nuniguru_ask_verification_status_total{status=\"UNVERIFIED\"} 1\nuniguru_ask_verification_status_total{status=\"VERIFIED\"} 1\n# TYPE uniguru_ask_decision_total counter\nuniguru_ask_decision_total{decision=\"answer\"} 1\nuniguru_ask_decision_total{decision=\"block\"} 1\n",
+  "metrics_snapshot": "# TYPE uniguru_requests_total counter\nuniguru_requests_total 6\n# TYPE uniguru_ask_requests_total counter\nuniguru_ask_requests_total 2\n# TYPE uniguru_rate_limited_total counter\nuniguru_rate_limited_total 1\n# TYPE uniguru_requests_per_minute gauge\nuniguru_requests_per_minute 2\n# TYPE uniguru_verification_success_rate gauge\nuniguru_verification_success_rate 0.500000\n# TYPE uniguru_request_latency_ms_avg gauge\nuniguru_request_latency_ms_avg 8.598\n# TYPE uniguru_requests_by_status_total counter\nuniguru_requests_by_status_total{code=\"200\",group=\"2xx\"} 4\nuniguru_requests_by_status_total{code=\"422\",group=\"4xx\"} 1\nuniguru_requests_by_status_total{code=\"429\",group=\"4xx\"} 1\n# TYPE uniguru_ask_verification_status_total counter\nuniguru_ask_verification_status_total{status=\"UNVERIFIED\"} 1\nuniguru_ask_verification_status_total{status=\"VERIFIED\"} 1\n# TYPE uniguru_ask_decision_total counter\nuniguru_ask_decision_total{decision=\"answer\"} 1\nuniguru_ask_decision_total{decision=\"block\"} 1\n",
+  "health_snapshot": {
+    "status": "ok",
+    "service": "uniguru-live-reasoning",
+    "version": "1.1.0",
+    "uptime_seconds": 0.127,
+    "checks": {
+      "ontology_registry": "ok",
+      "reasoning_service": "ok"
+    }
+  },
+  "ready_snapshot": {
+    "status": "ready",
+    "service": "uniguru-live-reasoning"
+  },
   "dashboard_snapshot": {
     "service": "uniguru-live-reasoning",
-    "uptime_seconds": 0.12,
+    "uptime_seconds": 0.144,
     "traffic": {
       "ask_requests_total": 2,
       "rate_limited_total": 1,
       "requests_per_minute": 2,
-      "average_latency_ms": 8.069,
+      "average_latency_ms": 8.598,
       "verification_success_rate": 0.5
     },
     "status_codes": {
-      "200": 3,
+      "200": 5,
       "422": 1,
       "429": 1
     },
@@ -101,11 +115,11 @@
   "structured_log_examples": [
     {
       "event": "request_processed",
-      "request_id": "c09f4eda-5948-478f-9d1c-1a2a69fea256",
+      "request_id": "636de5ea-6b71-47db-998f-65dca7c85d4b",
       "query_type": "concept_query",
       "decision": "answer",
       "verification_status": "VERIFIED",
-      "latency_ms": 8.53
+      "latency_ms": 8.87
     },
     {
       "event": "invalid_request_rejected",

@@ -1,30 +1,203 @@
 {
-  "timestamp": "2026-03-09T11:26:38.932801",
+  "timestamp": "2026-03-10T08:51:54.241520",
   "base_url": "http://127.0.0.1:8000",
   "results": [
     {
       "test_case": "Verified KB Response",
-      "status_code": 503,
-      "latency_ms": 15.39,
-      "response": "{\"detail\":\"Service token auth is required but no tokens are configured.\"}"
+      "status_code": 200,
+      "latency_ms": 26.04,
+      "response": {
+        "decision": "answer",
+        "answer": "Based on verified source: qubit.md\n\nUniGuru Deterministic Knowledge Retrieval:\n\nTitle: Nielsen & Chuang Core Concepts\nSource(s): Nielsen, M. A. & Chuang, I. L., \"Quantum Computation and Quantum Information\" (2010)\nAuthors: Michael A. Nielsen; Isaac L. Chuang (summarized)\nYear: 2010\nDomain: Quantum Foundations / Quantum Information\nIngestion date: 2026-02-06\n\nDefinitions\n- Qubit: Two-level quantum system represented by state vector $|\\psi\\rangle=\\alpha|0\\rangle+\\beta|1\\rangle$.\n- Density operator: $\\rho$ describing mixed states; $\\rho=\\sum_i p_i|\\psi_i\\rangle\\langle\\psi_i|$.\n- Unitary evolution: Closed-system dynamics described by $\\rho\\mapsto U\\rho U^{\\dagger}$.\n- Measurement (projective): Born rule $p_i=\\langle\\psi|\\Pi_i|\\psi\\rangle$ for projector $\\Pi_i$.\n- Entanglement: Non-separable joint states with correlations beyond classical mixtures.\n\nKey Concepts\n- State space: Hilbert space formalism and tensor-product composition.\n- Quantum gates: Reversible operations implemented by unitary matrices.\n- Quantum circuits: Composition of gates to implement algorithms.\n- Quantum error: Decoherence and noise motivating error correction.\n\nLight equation context\n- State normalization: $\\langle\\psi|\\psi\\rangle=1$.\n- Expectation value: $\\langle A\\rangle=\\mathrm{Tr}(\\rho A)$.\n\nConcept explanations\n- Superposition: Linear combination of basis states enabling interference.\n- Measurement collapse (operational): Probabilistic update of state post-measurement.\n- Quantum tomography (summary): Reconstruction of $\\rho$ from measurement statistics.\n\nCitations\n- Nielsen & Chuang (2010). Core textbook treatment of these foundational topics.SSSS\n\n",
+        "session_id": null,
+        "reason": "Knowledge found in local KB and verified.",
+        "ontology_reference": {
+          "concept_id": "2200072c-5a0d-4f68-a56a-a0c807f6cf5e",
+          "domain": "quantum",
+          "snapshot_version": 1,
+          "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+          "truth_level": 3
+        },
+        "reasoning_trace": {
+          "sources_consulted": [
+            "ontology_graph",
+            "ontology_registry",
+            "quantum"
+          ],
+          "retrieval_confidence": 1.0,
+          "ontology_domain": "quantum",
+          "verification_status": "VERIFIED",
+          "verification_details": "VERIFIED"
+        },
+        "governance_flags": {
+          "authority": false,
+          "delegation": false,
+          "emotional": false,
+          "ambiguity": false,
+          "safety": false,
+          "output_authority_violation": false
+        },
+        "governance_output": {
+          "allowed": true,
+          "reason": "Output governance passed.",
+          "flags": {
+            "output_authority_violation": false
+          }
+        },
+        "verification_status": "VERIFIED",
+        "status_action": "ALLOW",
+        "enforcement_signature": "d34e82bb0bf8d9950ac01051c2817a1d0ecd3cae64c97846124e9d1ef148e71e",
+        "request_id": "31fc727b-a607-4cef-b5c0-905b15c4a7da",
+        "sealed_at": "2026-03-10T03:21:54Z",
+        "latency_ms": 10.25
+      }
     },
     {
       "test_case": "Unknown Query",
-      "status_code": 503,
-      "latency_ms": 17.92,
-      "response": "{\"detail\":\"Service token auth is required but no tokens are configured.\"}"
+      "status_code": 200,
+      "latency_ms": 16.76,
+      "response": {
+        "decision": "block",
+        "answer": "Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+        "session_id": null,
+        "reason": "Refusal: source verification uncertain or unavailable.",
+        "ontology_reference": {
+          "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+          "domain": "core",
+          "snapshot_version": 1,
+          "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+          "truth_level": 0
+        },
+        "reasoning_trace": {
+          "sources_consulted": [
+            "ontology_registry",
+            "ontology_graph"
+          ],
+          "retrieval_confidence": 0.0,
+          "ontology_domain": "core",
+          "verification_status": "UNVERIFIED",
+          "verification_details": "UNVERIFIED"
+        },
+        "governance_flags": {
+          "authority": false,
+          "delegation": false,
+          "emotional": false,
+          "ambiguity": false,
+          "safety": false,
+          "output_authority_violation": false
+        },
+        "governance_output": {
+          "allowed": true,
+          "reason": "Output governance passed.",
+          "flags": {
+            "output_authority_violation": false
+          }
+        },
+        "verification_status": "UNVERIFIED",
+        "status_action": "REFUSE",
+        "enforcement_signature": "0ceb0cae2d765b887dc3935721ce81bc6d7b13c0a75d5cf73bde2639822af948",
+        "request_id": "1e9b07ca-d7b9-465c-a732-5c8c7b6ff92a",
+        "sealed_at": "2026-03-10T03:21:54Z",
+        "latency_ms": 8.24
+      }
     },
     {
       "test_case": "Unsafe Query Block",
-      "status_code": 503,
-      "latency_ms": 6.32,
-      "response": "{\"detail\":\"Service token auth is required but no tokens are configured.\"}"
+      "status_code": 200,
+      "latency_ms": 36.83,
+      "response": {
+        "decision": "block",
+        "answer": "Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+        "session_id": null,
+        "reason": "Refusal: source verification uncertain or unavailable.",
+        "ontology_reference": {
+          "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+          "domain": "core",
+          "snapshot_version": 1,
+          "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+          "truth_level": 0
+        },
+        "reasoning_trace": {
+          "sources_consulted": [
+            "ontology_registry",
+            "ontology_graph"
+          ],
+          "retrieval_confidence": 0.0,
+          "ontology_domain": "core",
+          "verification_status": "UNVERIFIED",
+          "verification_details": "UNVERIFIED"
+        },
+        "governance_flags": {
+          "authority": true,
+          "delegation": false,
+          "emotional": false,
+          "ambiguity": false,
+          "safety": false,
+          "output_authority_violation": false
+        },
+        "governance_output": {
+          "allowed": true,
+          "reason": "Output governance passed.",
+          "flags": {
+            "output_authority_violation": false
+          }
+        },
+        "verification_status": "UNVERIFIED",
+        "status_action": "REFUSE",
+        "enforcement_signature": "4ea0f2f56a57a9c0bcec39df984183548d80dea6f88a4e01b6e081506cacb624",
+        "request_id": "67f938f1-5e4b-45f4-89d5-1edafaf4bb5b",
+        "sealed_at": "2026-03-10T03:21:54Z",
+        "latency_ms": 10.93
+      }
     },
     {
       "test_case": "Web Retrieval Query",
-      "status_code": 503,
-      "latency_ms": 6.28,
-      "response": "{\"detail\":\"Service token auth is required but no tokens are configured.\"}"
+      "status_code": 200,
+      "latency_ms": 15.09,
+      "response": {
+        "decision": "block",
+        "answer": "Verification status: UNVERIFIED. I cannot verify this information from current knowledge.",
+        "session_id": null,
+        "reason": "Refusal: source verification uncertain or unavailable.",
+        "ontology_reference": {
+          "concept_id": "f5e3a359-9ad5-4fcb-b483-598d0917f865",
+          "domain": "core",
+          "snapshot_version": 1,
+          "snapshot_hash": "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+          "truth_level": 0
+        },
+        "reasoning_trace": {
+          "sources_consulted": [
+            "ontology_registry",
+            "ontology_graph"
+          ],
+          "retrieval_confidence": 0.0,
+          "ontology_domain": "core",
+          "verification_status": "UNVERIFIED",
+          "verification_details": "UNVERIFIED"
+        },
+        "governance_flags": {
+          "authority": false,
+          "delegation": false,
+          "emotional": false,
+          "ambiguity": false,
+          "safety": false,
+          "output_authority_violation": false
+        },
+        "governance_output": {
+          "allowed": true,
+          "reason": "Output governance passed.",
+          "flags": {
+            "output_authority_violation": false
+          }
+        },
+        "verification_status": "UNVERIFIED",
+        "status_action": "REFUSE",
+        "enforcement_signature": "5afbfe92edace3df8875dd8753483660ace4a82c64911eedde965c49d9c54a62",
+        "request_id": "14844256-acbc-44b0-8d4b-e750a6b3777a",
+        "sealed_at": "2026-03-10T03:21:54Z",
+        "latency_ms": 9.28
+      }
     }
   ]
 }

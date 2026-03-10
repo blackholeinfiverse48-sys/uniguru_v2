@@ -1,9 +1,13 @@
 import requests
 import json
 import sys
+import os
 
 BASE_URL = "http://127.0.0.1:8000"
-TOKEN = "uniguru-dev-token-2026"
+TOKEN = os.getenv("UNIGURU_API_TOKEN", "")
+if not TOKEN:
+    print("UNIGURU_API_TOKEN is required to run this script.")
+    sys.exit(1)
 
 def test_endpoint(method, path, headers=None, json_data=None):
     url = f"{BASE_URL}{path}"

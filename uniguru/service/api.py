@@ -126,8 +126,7 @@ def _extract_service_token(request: Request) -> Optional[str]:
     auth_header = request.headers.get("Authorization", "")
     if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip() or None
-    alt_header = request.headers.get("X-Service-Token", "").strip()
-    return alt_header or None
+    return None
 
 
 def _enforce_service_auth(request: Request) -> None:
@@ -144,13 +143,20 @@ def _enforce_service_auth(request: Request) -> None:
 
 def _resolve_caller(request: AskRequest, raw_request: Request) -> str:
     context = dict(request.context or {})
-    context_caller = str(context.get("caller") or "").strip()
-    header_caller = raw_request.headers.get("X-Caller-Name", "").strip()
-    caller = context_caller or header_caller
+    # Prioritize context field as per integration requirements
+    caller = str(context.get("caller") or "").strip()
+    
+    # Fallback to header ONLY if context caller is missing
     if not caller:
-        raise HTTPException(status_code=400, detail="caller identity is required via context.caller or X-Caller-Name")
+        caller = raw_request.headers.get("X-Caller-Name", "").strip()
+        
+    if not caller:
+        raise HTTPException(status_code=400, detail="caller identity is required in request context or X-Caller-Name header.")
+        
     if caller not in _ALLOWED_CALLERS:
-        raise HTTPException(status_code=403, detail="Caller is not allowed")
+        _log_event("authentication_failure", {"detail": f"Caller '{caller}' not in allowlist"})
+        raise HTTPException(status_code=403, detail="Forbidden: Caller not authorized for this service.")
+        
     return caller
 
 

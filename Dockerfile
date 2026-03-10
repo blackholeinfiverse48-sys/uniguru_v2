@@ -12,5 +12,4 @@ COPY . /app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "uniguru.service.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
-
+CMD ["sh", "-c", "uvicorn uniguru.service.api:app --host ${UNIGURU_HOST:-0.0.0.0} --port ${UNIGURU_PORT:-8000} --workers ${UNIGURU_WORKERS:-4}"]

@@ -1,4 +1,4 @@
-[WEB-RETRIEVER] BeautifulSoup not available — falling back to regex extraction.
+[WEB-RETRIEVER] BeautifulSoup not available ï¿½ falling back to regex extraction.
 INFO:     Started server process [21272]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.

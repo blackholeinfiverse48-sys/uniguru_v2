@@ -1,0 +1,49 @@
+﻿{
+    "generated_at":  "2026-03-10T08:40:58.2420389+05:30",
+    "base_url":  "http://127.0.0.1:8010",
+    "health_status":  "OK",
+    "health":  {
+                   "status":  "ok",
+                   "service":  "uniguru-live-reasoning",
+                   "version":  "1.1.0",
+                   "uptime_seconds":  2.143,
+                   "checks":  {
+                                  "ontology_registry":  "ok",
+                                  "reasoning_service":  "ok"
+                              }
+               },
+    "metrics_status_code":  200,
+    "metrics_excerpt":  [
+                            "# TYPE uniguru_requests_total counter",
+                            "uniguru_requests_total 1",
+                            "# TYPE uniguru_ask_requests_total counter",
+                            "uniguru_ask_requests_total 0",
+                            "# TYPE uniguru_rate_limited_total counter",
+                            "uniguru_rate_limited_total 0",
+                            "# TYPE uniguru_requests_per_minute gauge",
+                            "uniguru_requests_per_minute 0"
+                        ],
+    "ask_status":  "OK",
+    "ask":  {
+                "ontology_reference":  {
+                                           "concept_id":  "2200072c-5a0d-4f68-a56a-a0c807f6cf5e",
+                                           "domain":  "quantum",
+                                           "snapshot_version":  1,
+                                           "snapshot_hash":  "e7292c6b78cfa8c7fe0008b36f6916879af5b9c78d763a3cbf402d3e3d6895ad",
+                                           "truth_level":  3
+                                       },
+                "verification_status":  "VERIFIED",
+                "reasoning_trace":  {
+                                        "sources_consulted":  [
+                                                                  "ontology_graph",
+                                                                  "ontology_registry",
+                                                                  "quantum"
+                                                              ],
+                                        "retrieval_confidence":  1.0,
+                                        "ontology_domain":  "quantum",
+                                        "verification_status":  "VERIFIED",
+                                        "verification_details":  "VERIFIED"
+                                    },
+                "decision":  "answer"
+            }
+}

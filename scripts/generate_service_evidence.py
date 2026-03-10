@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from uniguru.service.api import app
 
 def main() -> None:
     client = TestClient(app)
+    token = os.getenv("UNIGURU_API_TOKEN", "uniguru-dev-token-2026")
+    auth_headers = {"Authorization": f"Bearer {token}"}
 
     valid_response = client.post(
         "/ask",
@@ -21,6 +24,7 @@ def main() -> None:
             "allow_web": False,
             "session_id": "evidence-valid-1",
         },
+        headers=auth_headers,
     )
 
     invalid_response = client.post(
@@ -37,18 +41,25 @@ def main() -> None:
         api_module._RATE_LIMIT_MAX_REQUESTS = 1
         api_module._RATE_LIMIT_WINDOW_SECONDS = 60
         api_module._RATE_LIMIT_BUCKET.clear()
-        rl_first = client.post("/ask", json={"query": "Explain ahimsa", "context": {"caller": "internal-testing"}})
+        rl_first = client.post(
+            "/ask",
+            json={"query": "Explain ahimsa", "context": {"caller": "internal-testing"}},
+            headers=auth_headers,
+        )
         rl_second = client.post(
             "/ask",
             json={"query": "Explain anekantavada", "context": {"caller": "internal-testing"}},
+            headers=auth_headers,
         )
     finally:
         api_module._RATE_LIMIT_MAX_REQUESTS = original_limit
         api_module._RATE_LIMIT_WINDOW_SECONDS = original_window
         api_module._RATE_LIMIT_BUCKET.clear()
 
-    metrics = client.get("/metrics")
-    dashboard = client.get("/monitoring/dashboard")
+    health = client.get("/health")
+    ready = client.get("/ready")
+    metrics = client.get("/metrics", headers=auth_headers)
+    dashboard = client.get("/monitoring/dashboard", headers=auth_headers)
 
     evidence = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -68,6 +79,8 @@ def main() -> None:
             },
         },
         "metrics_snapshot": metrics.text,
+        "health_snapshot": health.json(),
+        "ready_snapshot": ready.json(),
         "dashboard_snapshot": dashboard.json(),
         "structured_log_examples": [
             {
