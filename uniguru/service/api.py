@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from uniguru.ontology.registry import OntologyRegistry
+from uniguru.router.conversation_router import ConversationRouter
 from uniguru.service.live_service import LiveUniGuruService
 from uniguru.service.query_classifier import QueryType, classify_query
 
@@ -74,6 +75,7 @@ class AskRequest(BaseModel):
 
 app = FastAPI(title="UniGuru Live Reasoning Service", version="1.1.0")
 service = LiveUniGuruService()
+conversation_router = ConversationRouter(uniguru_service=service)
 registry = OntologyRegistry()
 _START_TIME = time.time()
 _API_AUTH_REQUIRED = os.getenv("UNIGURU_API_AUTH_REQUIRED", "true").strip().lower() in {"1", "true", "yes", "on"}
@@ -99,7 +101,10 @@ _RATE_LIMIT_MAX_REQUESTS = int(os.getenv("UNIGURU_RATE_LIMIT_MAX_REQUESTS", "60"
 _RATE_LIMIT_BUCKET: Dict[str, deque[float]] = defaultdict(deque)
 _BUCKET_LOCK = threading.Lock()
 _METRICS_LOCK = threading.Lock()
+_QUEUE_LOCK = threading.Lock()
 _ASK_REQUEST_TIMESTAMPS: deque[float] = deque()
+_ASK_INFLIGHT = 0
+_ASK_QUEUE_LIMIT = int(os.getenv("UNIGURU_ROUTER_QUEUE_LIMIT", "200"))
 _METRICS = {
     "requests_total": 0,
     "requests_by_status": defaultdict(int),
@@ -108,6 +113,8 @@ _METRICS = {
     "request_latency_ms_total": 0.0,
     "ask_verification_total": defaultdict(int),
     "ask_decision_total": defaultdict(int),
+    "ask_route_total": defaultdict(int),
+    "queue_rejected_total": 0,
 }
 
 
@@ -176,6 +183,8 @@ def _save_metrics_snapshot() -> None:
             "request_latency_ms_total": float(_METRICS["request_latency_ms_total"]),
             "ask_verification_total": dict(_METRICS["ask_verification_total"]),
             "ask_decision_total": dict(_METRICS["ask_decision_total"]),
+            "ask_route_total": dict(_METRICS["ask_route_total"]),
+            "queue_rejected_total": int(_METRICS["queue_rejected_total"]),
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
     directory = os.path.dirname(_METRICS_STATE_FILE)
@@ -212,6 +221,11 @@ def _load_metrics_snapshot() -> None:
             int,
             {str(k): int(v) for k, v in dict(data.get("ask_decision_total", {})).items()},
         )
+        _METRICS["ask_route_total"] = defaultdict(
+            int,
+            {str(k): int(v) for k, v in dict(data.get("ask_route_total", {})).items()},
+        )
+        _METRICS["queue_rejected_total"] = int(data.get("queue_rejected_total", 0))
 
 
 def _reset_metrics() -> None:
@@ -223,6 +237,8 @@ def _reset_metrics() -> None:
         _METRICS["request_latency_ms_total"] = 0.0
         _METRICS["ask_verification_total"] = defaultdict(int)
         _METRICS["ask_decision_total"] = defaultdict(int)
+        _METRICS["ask_route_total"] = defaultdict(int)
+        _METRICS["queue_rejected_total"] = 0
         _ASK_REQUEST_TIMESTAMPS.clear()
 
 
@@ -261,6 +277,30 @@ def _record_ask_metrics(decision: str, verification_status: str, latency_ms: flo
         while _ASK_REQUEST_TIMESTAMPS and _ASK_REQUEST_TIMESTAMPS[0] < floor:
             _ASK_REQUEST_TIMESTAMPS.popleft()
     _save_metrics_snapshot()
+
+
+def _record_route_metric(route: str) -> None:
+    with _METRICS_LOCK:
+        _METRICS["ask_route_total"][route] += 1
+    _save_metrics_snapshot()
+
+
+def _try_enter_ask_queue() -> bool:
+    global _ASK_INFLIGHT
+    with _QUEUE_LOCK:
+        if _ASK_INFLIGHT >= _ASK_QUEUE_LIMIT:
+            with _METRICS_LOCK:
+                _METRICS["queue_rejected_total"] += 1
+            _save_metrics_snapshot()
+            return False
+        _ASK_INFLIGHT += 1
+        return True
+
+
+def _leave_ask_queue() -> None:
+    global _ASK_INFLIGHT
+    with _QUEUE_LOCK:
+        _ASK_INFLIGHT = max(0, _ASK_INFLIGHT - 1)
 
 
 def _validate_governance_input(query: str) -> None:
@@ -328,44 +368,48 @@ async def observability_and_throttle(request: Request, call_next):
 
 @app.post("/ask")
 def ask(request: AskRequest, raw_request: Request) -> Dict[str, Any]:
+    if not _try_enter_ask_queue():
+        raise HTTPException(status_code=503, detail="Router queue limit reached. Try again shortly.")
     _enforce_service_auth(raw_request)
-    started = time.perf_counter()
-    query = request.query
-    _validate_governance_input(query)
+    try:
+        started = time.perf_counter()
+        query = request.query
+        _validate_governance_input(query)
 
-    query_type = classify_query(query)
-    effective_allow_web = bool(request.allow_web or query_type == QueryType.WEB_LOOKUP)
-    caller_name = _resolve_caller(request=request, raw_request=raw_request)
+        query_type = classify_query(query)
+        caller_name = _resolve_caller(request=request, raw_request=raw_request)
 
-    context = dict(request.context or {})
-    context["caller"] = caller_name
-    context["query_type"] = query_type.value
+        context = dict(request.context or {})
+        context["caller"] = caller_name
+        context["query_type"] = query_type.value
+        context["session_id"] = request.session_id
+        context["allow_web"] = bool(request.allow_web or query_type == QueryType.WEB_LOOKUP)
 
-    response = service.ask(
-        user_query=query,
-        session_id=request.session_id,
-        context=context,
-        allow_web_retrieval=effective_allow_web,
-    )
-    latency_ms = (time.perf_counter() - started) * 1000
+        response = conversation_router.route_query(query=query, context=context)
+        latency_ms = (time.perf_counter() - started) * 1000
 
-    decision = str(response.get("decision") or "unknown")
-    verification_status = str(response.get("verification_status") or "UNVERIFIED")
-    _record_ask_metrics(decision=decision, verification_status=verification_status, latency_ms=latency_ms)
-    _log_event(
-        event="request_processed",
-        payload={
-            "request_id": response.get("request_id") or str(uuid.uuid4()),
-            "caller_name": caller_name,
-            "session_id": request.session_id,
-            "query_hash": _query_hash(query),
-            "query_type": query_type.value,
-            "latency": round(latency_ms, 3),
-            "verification_status": verification_status,
-            "decision": decision,
-        },
-    )
-    return response
+        decision = str(response.get("decision") or "unknown")
+        verification_status = str(response.get("verification_status") or "UNVERIFIED")
+        route = str((response.get("routing") or {}).get("route") or "UNKNOWN")
+        _record_ask_metrics(decision=decision, verification_status=verification_status, latency_ms=latency_ms)
+        _record_route_metric(route=route)
+        _log_event(
+            event="request_processed",
+            payload={
+                "request_id": response.get("request_id") or str(uuid.uuid4()),
+                "caller_name": caller_name,
+                "session_id": request.session_id,
+                "query_hash": _query_hash(query),
+                "query_type": query_type.value,
+                "route": route,
+                "latency": round(latency_ms, 3),
+                "verification_status": verification_status,
+                "decision": decision,
+            },
+        )
+        return response
+    finally:
+        _leave_ask_queue()
 
 
 @app.get("/health")
@@ -400,8 +444,10 @@ def metrics(request: Request) -> PlainTextResponse:
         by_status = dict(_METRICS["requests_by_status"])
         by_verification = dict(_METRICS["ask_verification_total"])
         by_decision = dict(_METRICS["ask_decision_total"])
+        by_route = dict(_METRICS["ask_route_total"])
         latency_total = float(_METRICS["request_latency_ms_total"])
         rpm = len(_ASK_REQUEST_TIMESTAMPS)
+        queue_rejected_total = int(_METRICS["queue_rejected_total"])
 
     success_count = int(by_verification.get("VERIFIED", 0)) + int(by_verification.get("PARTIAL", 0))
     verification_success_rate = (success_count / ask_total) if ask_total else 0.0
@@ -414,6 +460,8 @@ def metrics(request: Request) -> PlainTextResponse:
         f"uniguru_ask_requests_total {ask_total}",
         "# TYPE uniguru_rate_limited_total counter",
         f"uniguru_rate_limited_total {rate_limited_total}",
+        "# TYPE uniguru_router_queue_rejected_total counter",
+        f"uniguru_router_queue_rejected_total {queue_rejected_total}",
         "# TYPE uniguru_requests_per_minute gauge",
         f"uniguru_requests_per_minute {rpm}",
         "# TYPE uniguru_verification_success_rate gauge",
@@ -432,6 +480,9 @@ def metrics(request: Request) -> PlainTextResponse:
     lines.append("# TYPE uniguru_ask_decision_total counter")
     for decision, count in sorted(by_decision.items()):
         lines.append(f'uniguru_ask_decision_total{{decision="{decision}"}} {count}')
+    lines.append("# TYPE uniguru_ask_route_total counter")
+    for route, count in sorted(by_route.items()):
+        lines.append(f'uniguru_ask_route_total{{route="{route}"}} {count}')
     return PlainTextResponse("\n".join(lines) + "\n")
 
 
@@ -456,8 +507,10 @@ def monitoring_dashboard(request: Request) -> Dict[str, Any]:
         by_status = dict(_METRICS["requests_by_status"])
         by_verification = dict(_METRICS["ask_verification_total"])
         by_decision = dict(_METRICS["ask_decision_total"])
+        by_route = dict(_METRICS["ask_route_total"])
         latency_total = float(_METRICS["request_latency_ms_total"])
         rpm = len(_ASK_REQUEST_TIMESTAMPS)
+        queue_rejected_total = int(_METRICS["queue_rejected_total"])
 
     success_count = int(by_verification.get("VERIFIED", 0)) + int(by_verification.get("PARTIAL", 0))
     verification_success_rate = (success_count / ask_total) if ask_total else 0.0
@@ -472,9 +525,12 @@ def monitoring_dashboard(request: Request) -> Dict[str, Any]:
             "requests_per_minute": rpm,
             "average_latency_ms": round(average_latency, 3),
             "verification_success_rate": round(verification_success_rate, 6),
+            "queue_rejected_total": queue_rejected_total,
+            "queue_limit": _ASK_QUEUE_LIMIT,
         },
         "status_codes": by_status,
         "decisions": by_decision,
+        "routes": by_route,
         "verification_status": by_verification,
     }
 

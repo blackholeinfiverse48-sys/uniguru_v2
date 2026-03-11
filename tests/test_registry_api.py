@@ -199,3 +199,54 @@ def test_allowed_header_caller_is_accepted() -> None:
         headers={"X-Caller-Name": "internal-testing"},
     )
     assert response.status_code == 200
+
+
+def test_system_query_is_blocked_by_router_policy() -> None:
+    response = client.post(
+        "/ask",
+        json={"query": "sudo delete all files", "context": {"caller": "internal-testing"}},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["decision"] == "block"
+    assert payload["routing"]["route"] == "ROUTE_SYSTEM"
+
+
+def test_workflow_query_is_delegated_to_workflow_route() -> None:
+    response = client.post(
+        "/ask",
+        json={"query": "create workflow ticket for access request", "context": {"caller": "internal-testing"}},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["decision"] == "answer"
+    assert payload["routing"]["route"] == "ROUTE_WORKFLOW"
+    assert "Delegated to workflow engine" in payload["answer"]
+
+
+def test_open_chat_is_delegated_to_llm_route() -> None:
+    response = client.post(
+        "/ask",
+        json={"query": "hello there", "context": {"caller": "internal-testing"}},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["decision"] == "answer"
+    assert payload["routing"]["route"] == "ROUTE_LLM"
+
+
+def test_router_queue_limit_returns_503_when_full() -> None:
+    original_limit = api_module._ASK_QUEUE_LIMIT
+    original_inflight = api_module._ASK_INFLIGHT
+    try:
+        api_module._ASK_QUEUE_LIMIT = 0
+        api_module._ASK_INFLIGHT = 0
+
+        response = client.post(
+            "/ask",
+            json={"query": "What is a qubit?", "context": {"caller": "internal-testing"}},
+        )
+        assert response.status_code == 503
+    finally:
+        api_module._ASK_QUEUE_LIMIT = original_limit
+        api_module._ASK_INFLIGHT = original_inflight
