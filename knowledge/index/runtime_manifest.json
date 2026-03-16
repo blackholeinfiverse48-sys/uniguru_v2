@@ -1,16 +1,16 @@
 {
   "summary": {
-    "documents_total": 42,
-    "keywords_total": 102,
+    "documents_total": 45,
+    "keywords_total": 106,
     "categories": {
       "quantum": 19,
-      "gurukul": 3,
+      "gurukul": 6,
       "jain": 10,
       "swaminarayan": 10
     },
     "verification_status": {
       "UNSPECIFIED": 19,
-      "VERIFIED": 23
+      "VERIFIED": 26
     }
   },
   "ingestion_log": [
@@ -120,7 +120,22 @@
       "verification_status": "VERIFIED"
     },
     {
+      "path": "uniguru/knowledge/gurukul\\mathematics\\geometry.md",
+      "category": "gurukul",
+      "verification_status": "VERIFIED"
+    },
+    {
       "path": "uniguru/knowledge/gurukul\\mathematics\\vedic_math.md",
+      "category": "gurukul",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "path": "uniguru/knowledge/gurukul\\sanskrit\\grammar.md",
+      "category": "gurukul",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "path": "uniguru/knowledge/gurukul\\sciences\\physics_concepts.md",
       "category": "gurukul",
       "verification_status": "VERIFIED"
     },

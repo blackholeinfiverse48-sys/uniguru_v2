@@ -772,6 +772,19 @@
         "category": "quantum",
         "verification_status": "UNSPECIFIED"
       }
+    },
+    {
+      "content": "Physics deals with the fundamental forces of nature.",
+      "metadata": {
+        "source": "Gurukul Curriculum",
+        "path": "uniguru/knowledge/gurukul\\sciences\\physics_concepts.md",
+        "author": "Gurukul Board",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Physics Concepts",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
     }
   ],
   "quantum software stack": [
@@ -906,6 +919,21 @@
       }
     }
   ],
+  "geometry": [
+    {
+      "content": "Geometry is the study of shapes and spaces.",
+      "metadata": {
+        "source": "Gurukul Curriculum",
+        "path": "uniguru/knowledge/gurukul\\mathematics\\geometry.md",
+        "author": "Gurukul Board",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Geometry Basics",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
   "vedic math": [
     {
       "content": "In Gurukul tradition, Mathematics (Ganita) is approached through Vedic principles.\nKey concepts include:\n1. Ekadhikena Purvena: One more than the previous one.\n2. Nikhilam Navatashcaramam Dashatah: All from 9 and the last from 10.\n3. Urdhva-Tiryagbhyam: Vertically and crosswise.\n\nThese methods allow for rapid mental calculation and understanding of number theory.",
@@ -931,6 +959,51 @@
         "publication": "Unknown",
         "type": "markdown",
         "title": "Fundamentals of Gurukul Mathematics",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
+  "grammar": [
+    {
+      "content": "Sanskrit grammar rules are derived from Panini's Ashtadhyayi.",
+      "metadata": {
+        "source": "Gurukul Curriculum",
+        "path": "uniguru/knowledge/gurukul\\sanskrit\\grammar.md",
+        "author": "Gurukul Board",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Sanskrit Grammar",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
+  "physics concepts": [
+    {
+      "content": "Physics deals with the fundamental forces of nature.",
+      "metadata": {
+        "source": "Gurukul Curriculum",
+        "path": "uniguru/knowledge/gurukul\\sciences\\physics_concepts.md",
+        "author": "Gurukul Board",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Physics Concepts",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
+  "concepts": [
+    {
+      "content": "Physics deals with the fundamental forces of nature.",
+      "metadata": {
+        "source": "Gurukul Curriculum",
+        "path": "uniguru/knowledge/gurukul\\sciences\\physics_concepts.md",
+        "author": "Gurukul Board",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Physics Concepts",
         "verification_status": "VERIFIED",
         "category": "gurukul"
       }
