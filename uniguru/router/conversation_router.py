@@ -6,6 +6,7 @@ import re
 import threading
 import time
 import uuid
+import requests
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -120,6 +121,9 @@ class ConversationRouter:
             )
         self._allow_unverified_fallback = bool(allow_unverified_fallback)
         self._breaker = _LatencyCircuitBreaker(threshold_ms=threshold, open_seconds=open_seconds)
+        self._llm_url = os.getenv("UNIGURU_LLM_URL", "").strip()
+        self._llm_model = os.getenv("UNIGURU_LLM_MODEL", "").strip()
+        self._llm_timeout = float(os.getenv("UNIGURU_LLM_TIMEOUT_SECONDS", "20"))
 
     def route_query(self, query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         started = time.perf_counter()
@@ -261,20 +265,74 @@ class ConversationRouter:
         session_id: Optional[str],
         warning: Optional[str],
     ) -> Dict[str, Any]:
-        answer = "Delegated to LLM response path."
+        llm_result = self._request_llm(query=query, session_id=session_id)
+        answer = llm_result["answer"]
         if warning:
             answer = f"{warning} {answer}"
         return self._build_router_contract_response(
             decision="answer",
             answer=answer,
-            reason="ROUTE_LLM policy applied.",
+            reason=llm_result["reason"],
             query_type=query_type,
             route=RouteTarget.ROUTE_LLM,
             verification_status="UNVERIFIED",
             session_id=session_id,
             governance_allowed=True,
-            governance_reason="Delegated open-chat response.",
+            governance_reason=llm_result["governance_reason"],
         )
+
+    def _request_llm(self, query: str, session_id: Optional[str]) -> Dict[str, str]:
+        if not self._llm_url:
+            return {
+                "answer": "LLM response path is not configured. Set UNIGURU_LLM_URL to enable open-chat reasoning.",
+                "reason": "ROUTE_LLM selected but UNIGURU_LLM_URL is not configured.",
+                "governance_reason": "LLM route unavailable because no endpoint is configured.",
+            }
+
+        payload = {
+            "model": self._llm_model or None,
+            "prompt": query,
+            "query": query,
+            "input": query,
+            "session_id": session_id,
+            "stream": False,
+        }
+        sanitized_payload = {key: value for key, value in payload.items() if value is not None}
+
+        try:
+            response = requests.post(self._llm_url, json=sanitized_payload, timeout=self._llm_timeout)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as exc:
+            return {
+                "answer": f"LLM endpoint request failed: {exc}",
+                "reason": "ROUTE_LLM request to configured endpoint failed.",
+                "governance_reason": "LLM route returned an integration failure.",
+            }
+
+        answer = str(
+            data.get("answer")
+            or data.get("response")
+            or data.get("output")
+            or data.get("content")
+            or (data.get("message") or {}).get("content")
+            or ""
+        ).strip()
+        if not answer and isinstance(data.get("choices"), list) and data["choices"]:
+            answer = str(
+                (data["choices"][0].get("message") or {}).get("content")
+                or data["choices"][0].get("text")
+                or ""
+            ).strip()
+
+        if not answer:
+            answer = "Configured LLM endpoint returned no answer."
+
+        return {
+            "answer": answer,
+            "reason": "ROUTE_LLM policy applied via configured LLM endpoint.",
+            "governance_reason": "Delegated open-chat response through configured LLM service.",
+        }
 
     def _build_router_contract_response(
         self,

@@ -735,14 +735,14 @@
     {
       "content": "In Gurukul tradition, Mathematics (Ganita) is approached through Vedic principles.\nKey concepts include:\n1. Ekadhikena Purvena: One more than the previous one.\n2. Nikhilam Navatashcaramam Dashatah: All from 9 and the last from 10.\n3. Urdhva-Tiryagbhyam: Vertically and crosswise.\n\nThese methods allow for rapid mental calculation and understanding of number theory.",
       "metadata": {
-        "source": "vedic_math.md",
+        "source": "Gurukul curriculum reference notes",
         "path": "uniguru/knowledge/gurukul\\mathematics\\vedic_math.md",
         "author": "Gurukul Traditional School",
-        "publication": "Gurukul Press",
+        "publication": "Unknown",
         "type": "markdown",
         "title": "Fundamentals of Gurukul Mathematics",
-        "category": "gurukul",
-        "verification_status": "VERIFIED"
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
       }
     }
   ],
@@ -861,18 +861,63 @@
       }
     }
   ],
+  "panchavayava argument": [
+    {
+      "content": "The classical Nyaya presentation of inference is often described through five parts:\n1. Pratijna: the thesis or proposition.\n2. Hetu: the reason offered in support of the thesis.\n3. Udaharana: the example that demonstrates the rule.\n4. Upanaya: the application of that rule to the current case.\n5. Nigamana: the conclusion drawn from the reasoning.\n\nThis structure helps students distinguish a supported inference from an unsupported claim.",
+      "metadata": {
+        "source": "Nyaya teaching notes",
+        "path": "uniguru/knowledge/gurukul\\logic\\panchavayava_argument.md",
+        "author": "Gurukul Traditional School",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Panchavayava Argument Structure",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
+  "argument": [
+    {
+      "content": "The classical Nyaya presentation of inference is often described through five parts:\n1. Pratijna: the thesis or proposition.\n2. Hetu: the reason offered in support of the thesis.\n3. Udaharana: the example that demonstrates the rule.\n4. Upanaya: the application of that rule to the current case.\n5. Nigamana: the conclusion drawn from the reasoning.\n\nThis structure helps students distinguish a supported inference from an unsupported claim.",
+      "metadata": {
+        "source": "Nyaya teaching notes",
+        "path": "uniguru/knowledge/gurukul\\logic\\panchavayava_argument.md",
+        "author": "Gurukul Traditional School",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Panchavayava Argument Structure",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
+  "panchavayava": [
+    {
+      "content": "The classical Nyaya presentation of inference is often described through five parts:\n1. Pratijna: the thesis or proposition.\n2. Hetu: the reason offered in support of the thesis.\n3. Udaharana: the example that demonstrates the rule.\n4. Upanaya: the application of that rule to the current case.\n5. Nigamana: the conclusion drawn from the reasoning.\n\nThis structure helps students distinguish a supported inference from an unsupported claim.",
+      "metadata": {
+        "source": "Nyaya teaching notes",
+        "path": "uniguru/knowledge/gurukul\\logic\\panchavayava_argument.md",
+        "author": "Gurukul Traditional School",
+        "publication": "Unknown",
+        "type": "markdown",
+        "title": "Panchavayava Argument Structure",
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
+      }
+    }
+  ],
   "vedic math": [
     {
       "content": "In Gurukul tradition, Mathematics (Ganita) is approached through Vedic principles.\nKey concepts include:\n1. Ekadhikena Purvena: One more than the previous one.\n2. Nikhilam Navatashcaramam Dashatah: All from 9 and the last from 10.\n3. Urdhva-Tiryagbhyam: Vertically and crosswise.\n\nThese methods allow for rapid mental calculation and understanding of number theory.",
       "metadata": {
-        "source": "vedic_math.md",
+        "source": "Gurukul curriculum reference notes",
         "path": "uniguru/knowledge/gurukul\\mathematics\\vedic_math.md",
         "author": "Gurukul Traditional School",
-        "publication": "Gurukul Press",
+        "publication": "Unknown",
         "type": "markdown",
         "title": "Fundamentals of Gurukul Mathematics",
-        "category": "gurukul",
-        "verification_status": "VERIFIED"
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
       }
     }
   ],
@@ -880,14 +925,14 @@
     {
       "content": "In Gurukul tradition, Mathematics (Ganita) is approached through Vedic principles.\nKey concepts include:\n1. Ekadhikena Purvena: One more than the previous one.\n2. Nikhilam Navatashcaramam Dashatah: All from 9 and the last from 10.\n3. Urdhva-Tiryagbhyam: Vertically and crosswise.\n\nThese methods allow for rapid mental calculation and understanding of number theory.",
       "metadata": {
-        "source": "vedic_math.md",
+        "source": "Gurukul curriculum reference notes",
         "path": "uniguru/knowledge/gurukul\\mathematics\\vedic_math.md",
         "author": "Gurukul Traditional School",
-        "publication": "Gurukul Press",
+        "publication": "Unknown",
         "type": "markdown",
         "title": "Fundamentals of Gurukul Mathematics",
-        "category": "gurukul",
-        "verification_status": "VERIFIED"
+        "verification_status": "VERIFIED",
+        "category": "gurukul"
       }
     }
   ],

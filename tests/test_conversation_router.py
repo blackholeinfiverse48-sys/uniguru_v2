@@ -100,3 +100,32 @@ def test_latency_circuit_breaker_routes_to_llm_after_slow_call() -> None:
     assert second["routing"]["route"] == RouteTarget.ROUTE_UNIGURU.value
     assert "circuit breaker active" in second["answer"]
     assert fake.calls == 1
+
+
+def test_llm_route_uses_configured_endpoint(monkeypatch) -> None:
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {"message": {"content": "Hello from configured LLM"}}
+
+    captured = {}
+
+    def _fake_post(url, json, timeout):
+        captured["url"] = url
+        captured["json"] = json
+        captured["timeout"] = timeout
+        return _FakeResponse()
+
+    monkeypatch.setenv("UNIGURU_LLM_URL", "http://127.0.0.1:11434/api/generate")
+    monkeypatch.setenv("UNIGURU_LLM_MODEL", "llama3")
+    monkeypatch.setattr("uniguru.router.conversation_router.requests.post", _fake_post)
+
+    router = ConversationRouter(uniguru_service=_FakeUniGuruService({"decision": "answer", "verification_status": "VERIFIED"}))
+    response = router.route_query("hello there", {"session_id": "llm-1"})
+
+    assert response["routing"]["route"] == RouteTarget.ROUTE_LLM.value
+    assert response["answer"] == "Hello from configured LLM"
+    assert captured["url"] == "http://127.0.0.1:11434/api/generate"
+    assert captured["json"]["model"] == "llama3"

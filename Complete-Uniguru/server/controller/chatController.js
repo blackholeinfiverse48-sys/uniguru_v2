@@ -2,6 +2,15 @@ import Chat from '../models/Chat.js';
 import Guru from '../models/Guru.js';
 import { getRagAnswer } from '../config/rag.js';
 
+const BRIDGE_URL = process.env.UNIGURU_BRIDGE_URL || 'http://127.0.0.1:8002/chat';
+const UNIGURU_ALLOW_WEB = String(process.env.UNIGURU_ALLOW_WEB || 'false').toLowerCase() === 'true';
+
+const extractBridgeAnswer = (payload) =>
+  payload?.answer ||
+  payload?.data?.response_content ||
+  payload?.response ||
+  '';
+
 /**
  * @desc    Send new chat message
  * @route   POST /api/v1/chat/new
@@ -9,28 +18,59 @@ import { getRagAnswer } from '../config/rag.js';
  */
 export const sendChatMessage = async (req, res) => {
   try {
-    const { message, chatbotId, userId } = req.body;
-    console.log(`[MOCK BACKEND] Received message: "${message}" for guru: ${chatbotId}`);
+    const { message, chatbotId, userId, context = [], chatId } = req.body;
+    console.log(`[UNIGURU NODE] Forwarding message to bridge for guru ${chatbotId}`);
 
-    // Mock response following the expected structure
-    const mockResponse = {
-      success: true,
-      message: 'Message sent successfully (MOCK)',
-      aiResponse: {
-        content: `Legacy Production response for: ${message}. This message is verified via the bridge layer.`,
-        metadata: {
-          source: "Production Legacy System",
-          confidence: 0.98
+    const bridgeResponse = await fetch(BRIDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message,
+        session_id: chatId || undefined,
+        caller: 'uniguru-frontend',
+        allow_web: UNIGURU_ALLOW_WEB,
+        context: {
+          chatbotId,
+          userId,
+          nodeUserId: req.user?.id,
+          history: context
         }
-      }
-    };
+      })
+    });
 
-    res.status(200).json(mockResponse);
+    if (!bridgeResponse.ok) {
+      const bridgeError = await bridgeResponse.text();
+      throw new Error(`Bridge request failed with ${bridgeResponse.status}: ${bridgeError}`);
+    }
+
+    const bridgePayload = await bridgeResponse.json();
+    const answer = extractBridgeAnswer(bridgePayload);
+
+    res.status(200).json({
+      success: true,
+      message: 'Message sent successfully',
+      aiResponse: {
+        content: answer,
+        metadata: {
+          source: bridgePayload?.forwarded_to || BRIDGE_URL,
+          confidence: bridgePayload?.verification_status === 'VERIFIED' ? 1 : bridgePayload?.verification_status === 'PARTIAL' ? 0.75 : 0.4,
+          verification_status: bridgePayload?.verification_status,
+          reasoning_trace: bridgePayload?.reasoning_trace,
+          retrieved_chunks: bridgePayload?.data?.engine_response?.retrieved_chunks || [],
+          route: bridgePayload?.data?.engine_response?.routing?.route || bridgePayload?.routing?.route || null,
+          trace_id: bridgePayload?.trace_id || null
+        }
+      },
+      bridge: bridgePayload
+    });
   } catch (error) {
     console.error('Send chat message error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while sending message'
+      message: 'Server error while sending message',
+      error: error.message
     });
   }
 };

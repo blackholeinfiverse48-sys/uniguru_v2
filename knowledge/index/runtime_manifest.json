@@ -1,16 +1,16 @@
 {
   "summary": {
-    "documents_total": 41,
-    "keywords_total": 99,
+    "documents_total": 42,
+    "keywords_total": 102,
     "categories": {
       "quantum": 19,
-      "gurukul": 2,
+      "gurukul": 3,
       "jain": 10,
       "swaminarayan": 10
     },
     "verification_status": {
       "UNSPECIFIED": 19,
-      "VERIFIED": 22
+      "VERIFIED": 23
     }
   },
   "ingestion_log": [
@@ -111,6 +111,11 @@
     },
     {
       "path": "uniguru/knowledge/gurukul\\logic\\nyaya_logic.md",
+      "category": "gurukul",
+      "verification_status": "VERIFIED"
+    },
+    {
+      "path": "uniguru/knowledge/gurukul\\logic\\panchavayava_argument.md",
       "category": "gurukul",
       "verification_status": "VERIFIED"
     },

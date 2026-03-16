@@ -1,7 +1,7 @@
-﻿import os
+import os
 import time
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import requests
 from fastapi import FastAPI, HTTPException
@@ -9,20 +9,12 @@ from pydantic import BaseModel
 
 from uniguru.core.engine import RuleEngine
 from uniguru.enforcement.enforcement import SovereignEnforcement
-from uniguru.bridge.auth import generate_bridge_token
 from uniguru.integrations.gurukul.adapter import GurukulIntegrationAdapter, GurukulQueryRequest
 
 app = FastAPI(title="UniGuru Sovereign Bridge")
 
-# Production UniGuru backend endpoint. Can be overridden via env.
-PRODUCTION_UNIGURU_URL = os.getenv(
-    "UNIGURU_BACKEND_URL",
-    os.getenv("LEGACY_URL", "https://api.uniguru.ai/api/v1/chat/new"),
-)
-LEGACY_URL = PRODUCTION_UNIGURU_URL
-
-BRIDGE_USER_ID = os.getenv("BRIDGE_USER_ID")
-BRIDGE_CHATBOT_ID = os.getenv("BRIDGE_CHATBOT_ID")
+PYTHON_ENGINE_URL = os.getenv("UNIGURU_ENGINE_URL", "http://127.0.0.1:8000/ask")
+UNIGURU_API_TOKEN = os.getenv("UNIGURU_API_TOKEN", "").strip()
 
 engine = RuleEngine()
 enforcer = SovereignEnforcement()
@@ -34,16 +26,29 @@ class ChatRequest(BaseModel):
     question: Optional[str] = None
     query: Optional[str] = None
     session_id: Optional[str] = None
+    caller: str = "uniguru-frontend"
+    allow_web: bool = False
+    context: Optional[Dict[str, Any]] = None
     source: str = "bridge_v3"
 
 
-def _extract_answer(production_data: dict) -> str:
+def _extract_answer(payload: Dict[str, Any]) -> str:
     return str(
-        production_data.get("answer")
-        or (production_data.get("aiResponse") or {}).get("content")
-        or (production_data.get("data") or {}).get("response")
+        payload.get("answer")
+        or (payload.get("aiResponse") or {}).get("content")
+        or (payload.get("data") or {}).get("response")
         or ""
     )
+
+
+def _build_engine_headers(caller: str) -> Dict[str, str]:
+    headers = {
+        "Content-Type": "application/json",
+        "X-Caller-Name": caller,
+    }
+    if UNIGURU_API_TOKEN:
+        headers["Authorization"] = f"Bearer {UNIGURU_API_TOKEN}"
+    return headers
 
 
 @app.post("/chat")
@@ -55,57 +60,87 @@ async def chat_bridge(request: ChatRequest):
     if not user_msg:
         raise HTTPException(status_code=400, detail="No valid query provided.")
 
-    decision = engine.evaluate(user_msg, {"session_id": request.session_id, "trace_id": trace_id})
+    decision = engine.evaluate(
+        user_msg,
+        {
+            "session_id": request.session_id,
+            "trace_id": trace_id,
+            "caller": request.caller,
+        },
+    )
 
     if decision.get("decision") == "forward":
         try:
-            token = generate_bridge_token()
             resp = requests.post(
-                PRODUCTION_UNIGURU_URL,
+                PYTHON_ENGINE_URL,
                 json={
-                    "message": user_msg,
+                    "query": user_msg,
                     "session_id": request.session_id,
-                    "userId": BRIDGE_USER_ID,
-                    "chatbotId": BRIDGE_CHATBOT_ID,
+                    "allow_web": bool(request.allow_web),
+                    "context": {
+                        **(request.context or {}),
+                        "caller": request.caller,
+                        "bridge_source": request.source,
+                        "trace_id": trace_id,
+                    },
                 },
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}",
-                },
+                headers=_build_engine_headers(request.caller),
                 timeout=10,
             )
             resp.raise_for_status()
-            production_data = resp.json()
+            engine_data = resp.json()
 
-            answer = _extract_answer(production_data)
+            answer = _extract_answer(engine_data)
             if not answer:
                 decision = {
                     "decision": "block",
                     "verification_status": "UNVERIFIED",
-                    "reason": "Production backend response not verifiable.",
+                    "reason": "Python engine response not verifiable.",
                     "data": {"response_content": ""},
                 }
             else:
-                decision["legacy_response"] = production_data
-                decision["verification_status"] = "PARTIAL"
-                decision["data"] = {
-                    "response_content": answer,
-                    "verification": {
-                        "source_name": "Production UniGuru backend",
-                        "truth_declaration": "VERIFIED_PARTIAL",
-                        "formatted_response": "This information is partially verified from: Production UniGuru backend",
+                verification_status = str(engine_data.get("verification_status") or "UNVERIFIED").upper()
+                truth_declaration = (
+                    "VERIFIED"
+                    if verification_status == "VERIFIED"
+                    else "VERIFIED_PARTIAL"
+                    if verification_status == "PARTIAL"
+                    else "UNVERIFIED"
+                )
+                formatted_response = (
+                    "Based on verified source: Python UniGuru engine"
+                    if verification_status == "VERIFIED"
+                    else "This information is partially verified from: Python UniGuru engine"
+                    if verification_status == "PARTIAL"
+                    else "Verification status: UNVERIFIED"
+                )
+                decision = {
+                    "decision": engine_data.get("decision", "answer"),
+                    "reason": engine_data.get("reason", "Response provided by Python UniGuru engine."),
+                    "verification_status": verification_status,
+                    "status_action": engine_data.get("status_action"),
+                    "governance_flags": engine_data.get("governance_flags", {}),
+                    "governance_output": engine_data.get("governance_output", {}),
+                    "ontology_reference": engine_data.get("ontology_reference"),
+                    "reasoning_trace": engine_data.get("reasoning_trace"),
+                    "data": {
+                        "response_content": answer,
+                        "verification": {
+                            "source_name": "Python UniGuru engine",
+                            "truth_declaration": truth_declaration,
+                            "formatted_response": formatted_response,
+                        },
+                        "engine_response": engine_data,
                     },
+                    "forwarded_to": PYTHON_ENGINE_URL,
                 }
-                decision["forwarded_to"] = PRODUCTION_UNIGURU_URL
 
-        except Exception as e:
+        except Exception as exc:
             decision = {
                 "decision": "block",
                 "verification_status": "UNVERIFIED",
-                "reason": f"Production backend unavailable: {str(e)}",
-                "data": {
-                    "response_content": "",
-                },
+                "reason": f"Python engine unavailable: {str(exc)}",
+                "data": {"response_content": ""},
             }
 
     sealed_response = enforcer.process_and_seal(decision, trace_id)
@@ -132,12 +167,12 @@ def health():
     return {
         "status": "ok",
         "bridge_version": "3.0.0",
-        "production_target": PRODUCTION_UNIGURU_URL,
-        "external_llm_calls": False,
+        "python_engine_target": PYTHON_ENGINE_URL,
+        "external_llm_calls": bool(os.getenv("UNIGURU_LLM_URL")),
     }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8002)

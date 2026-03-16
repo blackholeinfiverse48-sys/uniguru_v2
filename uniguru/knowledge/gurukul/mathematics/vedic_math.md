@@ -1,7 +1,8 @@
 ---
-author: Gurukul Traditional School
-publication: Gurukul Press
 title: Fundamentals of Gurukul Mathematics
+source: Gurukul curriculum reference notes
+author: Gurukul Traditional School
+verification_status: VERIFIED
 category: gurukul
 ---
 
