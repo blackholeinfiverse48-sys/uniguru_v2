@@ -1,6 +1,6 @@
 import Chat from '../models/Chat.js';
 import Guru from '../models/Guru.js';
-import { getRagAnswer } from '../config/rag.js';
+import { getGurukulAnswer, getRagAnswer } from '../config/rag.js';
 
 /**
  * @desc    Send new chat message
@@ -93,7 +93,16 @@ export const sendChatMessage = async (req, res) => {
     // Call RAG API to get answer, passing context if provided
     let ragResponse;
     try {
-      ragResponse = await getRagAnswer(message.trim(), chat._id.toString(), context);
+      ragResponse = await getRagAnswer({
+        query: message.trim(),
+        sessionId: chat._id.toString(),
+        caller: 'bhiv-assistant',
+        context: {
+          ...(context || {}),
+          user_id: userId,
+          chatbot_id: chatbotId
+        }
+      });
     } catch (err) {
       console.error('RAG API error:', err);
       return res.status(500).json({
@@ -145,6 +154,45 @@ export const sendChatMessage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while sending message'
+    });
+  }
+};
+
+/**
+ * @desc    Gurukul query endpoint
+ * @route   POST /api/v1/gurukul/query
+ * @access  Private
+ */
+export const sendGurukulQuery = async (req, res) => {
+  try {
+    const { student_query, student_id, class_id, session_id, context } = req.body;
+
+    if (!student_query || !String(student_query).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'student_query is required'
+      });
+    }
+
+    const ragResponse = await getGurukulAnswer({
+      studentQuery: student_query,
+      studentId: student_id || '',
+      classId: class_id || null,
+      sessionId: session_id || null,
+      context: context || {}
+    });
+
+    return res.status(200).json({
+      success: true,
+      integration: 'gurukul',
+      student_id: student_id || null,
+      response: ragResponse
+    });
+  } catch (error) {
+    console.error('Gurukul query error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while forwarding Gurukul query'
     });
   }
 };

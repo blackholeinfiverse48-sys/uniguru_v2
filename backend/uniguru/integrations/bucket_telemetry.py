@@ -22,6 +22,9 @@ class TelemetryEvent:
     latency: float
     caller: Optional[str]
     session_id: Optional[str]
+    ontology_reference: Optional[Dict[str, Any]] = None
+    routing: Optional[Dict[str, Any]] = None
+    decision: Optional[str] = None
 
 
 class BucketTelemetryClient:
@@ -53,6 +56,9 @@ class BucketTelemetryClient:
             "latency": round(float(event.latency), 3),
             "caller": event.caller,
             "session_id": event.session_id,
+            "ontology_reference": event.ontology_reference,
+            "routing": event.routing or {"route": event.route},
+            "decision": event.decision,
             "timestamp_ms": int(time.time() * 1000),
         }
         body = json.dumps(payload, ensure_ascii=True).encode("utf-8")

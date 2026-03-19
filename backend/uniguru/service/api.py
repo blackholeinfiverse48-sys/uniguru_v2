@@ -298,6 +298,9 @@ def _emit_bucket_events(
     latency_ms: float,
     caller: Optional[str],
     session_id: Optional[str],
+    ontology_reference: Optional[Dict[str, Any]],
+    routing: Optional[Dict[str, Any]],
+    decision: Optional[str],
 ) -> None:
     events = ["router_decision"]
     route_upper = str(route or "").upper()
@@ -323,6 +326,9 @@ def _emit_bucket_events(
                 latency=latency_ms,
                 caller=caller,
                 session_id=session_id,
+                ontology_reference=ontology_reference,
+                routing=routing,
+                decision=decision,
             )
         )
 
@@ -396,6 +402,9 @@ def _process_router_request(
         latency_ms=latency_ms,
         caller=caller_name,
         session_id=session_id,
+        ontology_reference=response.get("ontology_reference"),
+        routing=response.get("routing"),
+        decision=decision,
     )
     _record_ask_metrics(decision=decision, verification_status=verification_status, latency_ms=latency_ms)
     _record_route_metric(route=route)

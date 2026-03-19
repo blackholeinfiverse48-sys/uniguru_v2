@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 const UNIGURU_ASK_URL = process.env.UNIGURU_ASK_URL;
@@ -8,58 +9,64 @@ if (!UNIGURU_ASK_URL) {
   throw new Error('UNIGURU_ASK_URL is not defined in .env');
 }
 
-// Test connection on startup
-(async () => {
-  try {
-    const testRes = await fetch(
-      UNIGURU_ASK_URL.replace('/ask', '/health'),
-      { method: 'GET' }
-    );
-    if (testRes.ok) {
-      console.log('UniGuru /ask endpoint reachable');
-    } else {
-      console.warn('UniGuru health check failed:', testRes.status);
-    }
-  } catch (err) {
-    console.warn('Could not reach UniGuru:', err.message);
-  }
-})();
-
-/**
- * Call TASK14's /ask endpoint - the full pipeline.
- * @param {string} query - The user's message
- * @param {string} sessionId - MongoDB chat._id (for session tracking)
- * @param {Array} context - Optional previous context array
- * @returns {Promise<object>} - Normalised response object
- */
-export const getRagAnswer = async (query, sessionId = null, context = []) => {
+function buildHeaders() {
   const headers = {
     'Content-Type': 'application/json',
-    accept: 'application/json',
+    accept: 'application/json'
   };
 
   if (UNIGURU_API_TOKEN) {
     headers.Authorization = `Bearer ${UNIGURU_API_TOKEN}`;
   }
 
-  const contextPayload = {
-    caller: 'gurukul-platform',
-  };
-  if (Array.isArray(context) && context.length > 0) {
-    contextPayload.history = context;
+  return headers;
+}
+
+export function buildUniGuruRequest({
+  query,
+  sessionId = null,
+  caller = 'bhiv-assistant',
+  allowWeb = false,
+  context = {}
+}) {
+  const normalizedQuery = String(query || '').trim();
+  if (!normalizedQuery) {
+    throw new Error('query is required');
   }
 
-  const body = {
-    query,
-    session_id: sessionId,
-    context: contextPayload,
-    allow_web: false,
+  return {
+    query: normalizedQuery,
+    context: {
+      ...(context || {}),
+      caller
+    },
+    allow_web: Boolean(allowWeb),
+    ...(sessionId ? { session_id: String(sessionId) } : {})
   };
+}
+
+/**
+ * Calls UniGuru /ask through a standardized bridge payload.
+ */
+export const getRagAnswer = async ({
+  query,
+  sessionId = null,
+  context = {},
+  caller = 'bhiv-assistant',
+  allowWeb = false
+}) => {
+  const body = buildUniGuruRequest({
+    query,
+    sessionId,
+    caller,
+    allowWeb,
+    context
+  });
 
   const response = await fetch(UNIGURU_ASK_URL, {
     method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+    headers: buildHeaders(),
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
@@ -76,8 +83,27 @@ export const getRagAnswer = async (query, sessionId = null, context = []) => {
     routing: result.routing,
     request_id: result.request_id,
     core_alignment: result.core_alignment,
-    retrieved_chunks: result.retrieved_chunks || [],
+    ontology_reference: result.ontology_reference,
+    retrieved_chunks: result.retrieved_chunks || []
   };
 };
 
-export default { getRagAnswer };
+export const getGurukulAnswer = async ({
+  studentQuery,
+  studentId = '',
+  sessionId = null,
+  classId = null,
+  context = {}
+}) =>
+  getRagAnswer({
+    query: studentQuery,
+    sessionId,
+    caller: 'gurukul-platform',
+    context: {
+      ...(context || {}),
+      student_id: studentId || undefined,
+      class_id: classId || undefined
+    }
+  });
+
+export default { getRagAnswer, getGurukulAnswer, buildUniGuruRequest };
