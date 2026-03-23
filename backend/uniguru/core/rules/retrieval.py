@@ -1,10 +1,11 @@
 import re
+import os
 
 from uniguru.core.rules.base import BaseRule, RuleContext, RuleResult, RuleAction
 from uniguru.retrieval.retriever import retrieve_knowledge_with_trace
 from uniguru.verifier.source_verifier import SourceVerifier
 
-KB_CONFIDENCE_THRESHOLD = 0.45
+KB_CONFIDENCE_THRESHOLD = float(os.getenv("UNIGURU_KB_CONFIDENCE_THRESHOLD", "0.45"))
 UNVERIFIED_REFUSAL = "I cannot verify this information from current knowledge."
 MAX_KB_RESPONSE_CHARS = 2000
 

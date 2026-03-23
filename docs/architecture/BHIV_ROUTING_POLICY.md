@@ -53,7 +53,7 @@ This policy defines conversation routing decisions for UniGuru as the BHIV knowl
 
 ## Queue Control
 - Control: `UNIGURU_ROUTER_QUEUE_LIMIT`
-- Action: reject requests over limit with `503` to preserve stability.
+- Action: serve safe fallback answer when queue limit is reached.
 
 ## Integration Notes
 - Sankalp (Intelligence Layer): consumes router route metadata.

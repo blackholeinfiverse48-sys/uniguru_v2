@@ -1,41 +1,54 @@
-# UniGuru TASK14
+# UniGuru
 
-Canonical decision file: `CANONICAL_SYSTEM_DECISION.md`
+UniGuru is a demo-safe AI backend stack with deterministic KB routing, LLM fallback, and guaranteed response behavior.
 
-Reorganized repository structure for UniGuru intelligence stack:
+## 3-Step Startup
 
-- `backend/`: Python FastAPI service and intelligence engine
-- `frontend/`: React chat UI for `/ask` and `/voice/query`
-- `deploy/`: NGINX/certbot/deployment config
-- `docs/`: architecture, API docs, deployment docs, reports
-- `scripts/`: utility scripts
+1. Configure environment values from [`config/env/.env.example`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/config/env/.env.example).
+2. Start backend:
+   - Windows: `powershell -ExecutionPolicy Bypass -File run/run_backend.ps1`
+   - Linux/macOS: `bash run/run_backend.sh`
+3. Start node middleware:
+   - Windows: `powershell -ExecutionPolicy Bypass -File run/run_node.ps1`
+   - Linux/macOS: `bash run/run_node.sh`
 
-## Quick Start
+## Validate End-to-End
 
-1. Backend env: copy `.env.example` and adjust only required keys.
-2. Start Python API: `set PYTHONPATH=backend && uvicorn uniguru.service.api:app --host 127.0.0.1 --port 8000`
-3. Start Node middleware: `cd node-backend && npm install && npm start`
-4. Health checks:
-   - Python: `GET http://127.0.0.1:8000/health`
-   - Python ready: `GET http://127.0.0.1:8000/ready`
-   - Node: `GET http://127.0.0.1:8080/health`
+Run:
 
-## Locked Execution Path
+`python test/run_phase8_validation.py`
 
-`UI / API Consumer -> node-backend -> POST /ask (Python) -> ConversationRouter -> KB or LLM fallback -> Response`
+Output:
 
-`POST /ask` is the canonical text-query entry point used by middleware integrations.
+[`demo_logs/phase8_test_outputs.json`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/demo_logs/phase8_test_outputs.json)
 
-## Live Query Flow
+Additional failure-injection proof:
 
-`Frontend -> node-backend (/api/v1/chat/query) -> uniguru-api (/ask)`
+`python test/run_demo_safety_proof.py`
 
-`Gurukul -> node-backend (/api/v1/gurukul/query) -> uniguru-api (/ask)`
+Output:
 
-## Phase-8 Validation
+[`demo_logs/demo_safety_proof.json`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/demo_logs/demo_safety_proof.json)
 
-With Python + Node running:
+## Canonical Flow
 
-`python scripts/run_phase8_checks.py`
+`UI -> Node (/api/v1/chat/query) -> Python (/ask) -> ConversationRouter -> KB or ROUTE_LLM -> Safe fallback`
 
-Output is written to `demo_logs/phase8_test_outputs.json`.
+Safe fallback phrase:
+
+`I am still learning this topic, but here is a basic explanation...`
+
+## Repository Map
+
+- `backend/`: Python FastAPI + UniGuru engine
+  - `uniguru/router/`, `uniguru/service/`, `uniguru/core/`, `uniguru/integrations/`
+- `node-backend/`: middleware
+  - `src/routes/`, `src/services/`, `src/server.js`
+- `frontend/`: client app
+- `run/`: canonical startup scripts
+- `test/`: executable validation scripts
+- `tests/`: test index
+- `config/`: environment and runtime settings
+- `docs/architecture/`: system design docs
+- `docs/handover/`: onboarding and failure guides
+- `docs/reports/`: evidence and historical reports

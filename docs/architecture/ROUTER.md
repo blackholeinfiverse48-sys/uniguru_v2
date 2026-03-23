@@ -62,7 +62,7 @@ graph TD
 - Latency circuit breaker:
   - If UniGuru latency crosses `UNIGURU_ROUTER_LATENCY_THRESHOLD_MS`, router opens breaker for `UNIGURU_ROUTER_CIRCUIT_OPEN_SECONDS` and temporarily uses LLM fallback.
 - Queue protection:
-  - API queue admission guard with `UNIGURU_ROUTER_QUEUE_LIMIT` rejects overload with `503`.
+  - API queue admission guard with `UNIGURU_ROUTER_QUEUE_LIMIT` returns safe fallback payload instead of `503`.
 
 ## Observability
 - Router decision is attached to response:

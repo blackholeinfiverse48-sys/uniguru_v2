@@ -1,15 +1,11 @@
-# Handover (Canonical)
+# Handover Index
 
-This handover is canonicalized.
+Use these as the canonical onboarding files:
 
-Primary source of truth:
-- `CANONICAL_SYSTEM_DECISION.md`
-
-Operational status and runbook:
-- `FINAL_SYSTEM_STATUS.md`
-
-Validation evidence:
-- `docs/reports/TASK14_PHASE8_TEST_OUTPUTS.md`
-- `docs/reports/TASK14_RUNTIME_PROOF.md`
-
-If any legacy report contradicts these files, use the canonical files above.
+- [`docs/architecture/SYSTEM_OVERVIEW.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/architecture/SYSTEM_OVERVIEW.md)
+- [`docs/architecture/EXECUTION_FLOW.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/architecture/EXECUTION_FLOW.md)
+- [`docs/handover/SETUP_GUIDE.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/handover/SETUP_GUIDE.md)
+- [`docs/handover/EXECUTION_INSTRUCTIONS.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/handover/EXECUTION_INSTRUCTIONS.md)
+- [`docs/handover/FAILURE_HANDLING.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/handover/FAILURE_HANDLING.md)
+- [`docs/handover/FAQ.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/handover/FAQ.md)
+- [`docs/handover/SYSTEM_READY_DECLARATION.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/handover/SYSTEM_READY_DECLARATION.md)

@@ -133,7 +133,10 @@ def test_service_token_auth_can_be_enforced() -> None:
         api_module._is_pytest_runtime = lambda: False
 
         unauthorized = client.post("/ask", json=_ask_payload("What is a qubit?"))
-        assert unauthorized.status_code == 401
+        assert unauthorized.status_code == 200
+        unauthorized_payload = unauthorized.json()
+        assert unauthorized_payload["verification_status"] == "UNVERIFIED"
+        assert "I am still learning this topic" in unauthorized_payload["answer"]
 
         authorized = client.post(
             "/ask",

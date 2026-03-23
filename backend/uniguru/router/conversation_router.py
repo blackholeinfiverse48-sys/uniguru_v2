@@ -123,8 +123,10 @@ class ConversationRouter:
             )
         self._allow_unverified_fallback = bool(allow_unverified_fallback)
         self._breaker = _LatencyCircuitBreaker(threshold_ms=threshold, open_seconds=open_seconds)
-        self._llm_url = os.getenv("UNIGURU_LLM_URL", "").strip()
-        self._llm_model = os.getenv("UNIGURU_LLM_MODEL", "").strip()
+        # Always default to internal demo mode so ROUTE_LLM remains available
+        # even when env files are missing in demo/smoke runs.
+        self._llm_url = os.getenv("UNIGURU_LLM_URL", "internal://demo-llm").strip()
+        self._llm_model = os.getenv("UNIGURU_LLM_MODEL", "demo-safety-llm").strip()
         self._llm_timeout = float(os.getenv("UNIGURU_LLM_TIMEOUT_SECONDS", "20"))
 
     def llm_status(self) -> Dict[str, Any]:

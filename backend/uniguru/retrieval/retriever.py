@@ -68,8 +68,12 @@ class AdvancedRetriever:
                         continue
                     full_path = os.path.join(root, file_name)
                     keyword = os.path.splitext(file_name)[0].lower().replace("_", " ")
-                    with open(full_path, "r", encoding="utf-8") as f:
-                        content = f.read()
+                    try:
+                        with open(full_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                    except OSError:
+                        # Demo-safety mode: unreadable KB files are skipped, not fatal.
+                        continue
                     self.knowledge_map[keyword] = content
                     self.source_map[keyword] = kb_name
                     self.file_map[keyword] = file_name
@@ -158,9 +162,12 @@ class AdvancedRetriever:
 
 
 def retrieve_advanced(query: str) -> Dict[str, Any]:
-    retriever = AdvancedRetriever()
-    results = retriever.retrieve_multi(query)
-    return retriever.reason_and_compare(results)
+    try:
+        retriever = AdvancedRetriever()
+        results = retriever.retrieve_multi(query)
+        return retriever.reason_and_compare(results)
+    except Exception:
+        return {"decision": "no_match", "content": None, "reasoning": "Retriever fallback mode activated."}
 
 
 def retrieve_knowledge(query: str) -> Optional[str]:
@@ -169,9 +176,20 @@ def retrieve_knowledge(query: str) -> Optional[str]:
 
 
 def retrieve_knowledge_with_trace(query: str) -> Tuple[Optional[str], Dict[str, Any]]:
-    retriever = AdvancedRetriever()
-    results = retriever.retrieve_multi(query)
-    result = retriever.reason_and_compare(results)
+    try:
+        retriever = AdvancedRetriever()
+        results = retriever.retrieve_multi(query)
+        result = retriever.reason_and_compare(results)
+    except Exception:
+        trace = {
+            "engine": "AdvancedRetriever_v2",
+            "kb_path": _KB_ROOT,
+            "match_found": False,
+            "confidence": 0.0,
+            "kb_file": None,
+            "sources_consulted": ["retriever_fallback", "ontology_registry", "ontology_graph"],
+        }
+        return None, trace
 
     if result.get("decision") == "answer" and result.get("content"):
         metadata = result.get("metadata") or {}

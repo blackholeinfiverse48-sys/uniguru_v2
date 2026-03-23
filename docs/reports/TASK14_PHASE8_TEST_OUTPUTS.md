@@ -1,6 +1,6 @@
 # TASK14 Phase-8 Test Outputs
 
-Execution date: 2026-03-21  
+Execution date: 2026-03-23  
 Flow tested: `node-backend -> Python /ask -> router -> KB/LLM -> response`
 
 Source artifact: `demo_logs/phase8_test_outputs.json`
@@ -19,27 +19,28 @@ Source artifact: `demo_logs/phase8_test_outputs.json`
 - Verification: `VERIFIED`
 - Route: `ROUTE_UNIGURU`
 
-3. General query: `What is Python?`
+3. General query: `Explain Python lists in simple terms.`
 - HTTP: `200`
 - Decision: `answer`
 - Verification: `UNVERIFIED`
 - Route: `ROUTE_LLM`
 
-4. Random query: `What is happening in the world?`
+4. Invalid query: `!!??###`
 - HTTP: `200`
 - Decision: `answer`
 - Verification: `UNVERIFIED`
 - Route: `ROUTE_LLM`
 
-5. Invalid query: `sudo rm -rf`
+5. System command query: `sudo rm -rf /`
 - HTTP: `200`
 - Decision: `block`
 - Verification: `UNVERIFIED`
 - Route: `ROUTE_SYSTEM`
 
-## LLM Activation Check
+All 5 queries returned non-empty responses (`all_ok: true`).
 
-Source artifact: `demo_logs/llm_activation_outputs.json`
+## Companion Proof
 
-- `Tell me a joke` -> `200`, `ROUTE_LLM`, non-empty conversational response.
-- `Explain current news` -> `200`, `ROUTE_LLM`, non-empty safe fallback response.
+For failure-injection safety scenarios, see:
+- [`docs/reports/DEMO_STABILITY_PROOF.md`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/docs/reports/DEMO_STABILITY_PROOF.md)
+- [`demo_logs/demo_safety_proof.json`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/demo_logs/demo_safety_proof.json)

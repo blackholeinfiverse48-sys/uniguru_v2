@@ -107,7 +107,7 @@ Result:
 Covered cases:
 
 - voice query enters through STT and reaches router
-- STT unavailability returns `503`
+- STT unavailability returns safe fallback payload
 - manifest STT provider resolves deterministic local entries for multiple Indian languages
 - concurrent voice queries handled without deadlocks
 
