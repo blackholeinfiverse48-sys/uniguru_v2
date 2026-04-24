@@ -1611,30 +1611,34 @@ def new_rag_endpoint(request: NewRagRequest, token: HTTPAuthorizationCredentials
         if token.credentials != allowed_key:
             raise HTTPException(status_code=401, detail="Unauthorized Access. Invalid API Key.")
             
-        engine = get_faiss_engine()
-        faiss_result = engine.answer_question(query=request.query, top_k=3)
-        
-        raw_answer = faiss_result.get("answer", "I do not have enough context.")
-        retrieved_chunks = faiss_result.get("retrieved", [])
-        
-        # Convert FAISS chunks back to the Kosha Signal structure the frontend expects
+        is_render = os.getenv("RENDER") is not None
         signals = []
-        for i, chunk in enumerate(retrieved_chunks):
-            signals.append({
-                "signal_id": f"faiss_chunk_{i}",
-                "signal_type": "KOSHA_VERIFIED",
-                "content": chunk.get("text", ""),
-                "confidence": chunk.get("score", 0.0),
-                "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
-                "trace": {
-                    "knowledge_id": f"FAISS_DOC_{i}",
-                    "retrieval_method": "embedding_faiss_score"
-                }
-            })
+
+        if is_render:
+            raw_answer = "Render Cloud Mode Active: Massive Local FAISS Database Bypassed to prevent RAM crash."
+        else:
+            engine = get_faiss_engine()
+            faiss_result = engine.answer_question(query=request.query, top_k=3)
+            
+            raw_answer = faiss_result.get("answer", "I do not have enough context.")
+            retrieved_chunks = faiss_result.get("retrieved", [])
+            
+            for i, chunk in enumerate(retrieved_chunks):
+                signals.append({
+                    "signal_id": f"faiss_chunk_{i}",
+                    "signal_type": "KOSHA_VERIFIED",
+                    "content": chunk.get("text", ""),
+                    "confidence": chunk.get("score", 0.0),
+                    "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
+                    "trace": {
+                        "knowledge_id": f"FAISS_DOC_{i}",
+                        "retrieval_method": "embedding_faiss_score"
+                    }
+                })
             
         return {
             "query": request.query,
-            "domain": request.domain or "General (FAISS)",
+            "domain": request.domain or ("Render Cloud" if is_render else "General (FAISS)"),
             "answer": raw_answer,
             "confidence": 0.9 if signals else 0.0,
             "signals": signals,
@@ -1705,26 +1709,31 @@ def new_query_endpoint(request: CoreRequest, token: HTTPAuthorizationCredentials
         if token.credentials != allowed_key:
             raise HTTPException(status_code=401, detail="Unauthorized Access.")
             
-        # Fetch Base Signals
-        engine = get_faiss_engine()
-        faiss_result = engine.answer_question(query=request.query, top_k=5)
-        raw_answer = faiss_result.get("answer", "No answer found")
-        retrieved_chunks = faiss_result.get("retrieved", [])
-        
+        is_render = os.getenv("RENDER") is not None
         signals = []
-        for i, chunk in enumerate(retrieved_chunks):
-            signals.append({
-                "signal_id": f"faiss_chunk_{i}",
-                "signal_type": "KOSHA_VERIFIED",
-                "content": chunk.get("text", ""),
-                "confidence": chunk.get("score", 0.0),
-                "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
-                "trace": {
-                    "knowledge_id": f"FAISS_DOC_{i}",
-                    "retrieval_method": "embedding_faiss_score",
-                    "step": "vector_fetch"
-                }
-            })
+
+        if not is_render:
+            # Fetch Base Signals ONLY on Local Machine
+            engine = get_faiss_engine()
+            faiss_result = engine.answer_question(query=request.query, top_k=5)
+            raw_answer = faiss_result.get("answer", "No answer found")
+            retrieved_chunks = faiss_result.get("retrieved", [])
+            
+            for i, chunk in enumerate(retrieved_chunks):
+                signals.append({
+                    "signal_id": f"faiss_chunk_{i}",
+                    "signal_type": "KOSHA_VERIFIED",
+                    "content": chunk.get("text", ""),
+                    "confidence": chunk.get("score", 0.0),
+                    "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
+                    "trace": {
+                        "knowledge_id": f"FAISS_DOC_{i}",
+                        "retrieval_method": "embedding_faiss_score",
+                        "step": "vector_fetch"
+                    }
+                })
+        else:
+            raw_answer = "Render Cloud Mode Active: Massive Local FAISS Database Bypassed to prevent RAM crash."
             
         # Introduce External System Call (Samachar)
         signals.append(mock_samachar_system(request.query))
