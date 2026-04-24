@@ -92,8 +92,9 @@ class NewRAGEngine:
             context = context[:max_context_chars] + "\n...[truncated]"
         
         system_prompt = (
-            "Answer based ONLY on the provided context. If not present, say 'I don't know'. "
-            "Cite sources using numbers like [1], [2]."
+            "You are an intelligent knowledge assistant. "
+            "First, TRY to answer the question using the provided context."
+            "If the context is unrelated, ignore the context and use your own knowledge to answer the question dynamically."
         )
         user_prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
         

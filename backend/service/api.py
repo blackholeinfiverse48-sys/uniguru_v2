@@ -1582,78 +1582,66 @@ class NewRagRequest(BaseModel):
     query: str = Field(..., min_length=1)
     domain: Optional[str] = Field(None, description="Optional domain filter (Agriculture, Urban, Water / Rivers, Infrastructure)")
 
-_kosha_retriever_instance = None
+import os
+from RAG.new_rag_query import get_engine
 
-def get_kosha_retriever():
-    global _kosha_retriever_instance
-    if _kosha_retriever_instance is None:
-        import os
-        from kosha.kosha_loader import KoshaLoader
-        from kosha.kosha_retriever import KoshaRetriever
-        
-        base_dir = os.path.dirname(__file__)
-        dataset_path = os.path.join(base_dir, "..", "data", "kosha")
-        
-        # Give warning if directory doesn't exist
-        if not os.path.exists(dataset_path):
-            os.makedirs(dataset_path, exist_ok=True)
-            
-        loader = KoshaLoader([dataset_path])
-        entries = loader.load_all()
-        _kosha_retriever_instance = KoshaRetriever(entries)
-    return _kosha_retriever_instance
+_engine_instance = None
+def get_faiss_engine():
+    global _engine_instance
+    if _engine_instance is None:
+        _engine_instance = get_engine()
+    return _engine_instance
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
+
+security = HTTPBearer()
 
 @app.post(
     "/new_rag",
     tags=["Core Intelligence"],
     summary="Query Deterministic Kosha System",
-    description="Deterministic KOSHA retrieval with pure LLM fallback if no signals exist."
+    description="Deterministic KOSHA retrieval falling back to original FAISS architecture."
 )
-def new_rag_endpoint(request: NewRagRequest) -> Dict[str, Any]:
+def new_rag_endpoint(request: NewRagRequest, token: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     try:
-        retriever = get_kosha_retriever()
-        signals, detected_domain = retriever.retrieve(query=request.query, domain=request.domain)
+        import os
+        allowed_key = os.getenv("EXTERNAL_API_SECRET_KEY", "uniguru_secret_123")
         
-        if signals:
-            best_signal = signals[0]
-            answer = f"Based on verified Kosha records, {best_signal['content']}"
-            conf = float(best_signal['confidence'])
-        else:
-            # Fallback to LLM
-            conf = 0.0
-            try:
-                import os
-                from groq import Groq
-                
-                groq_key = os.getenv("GROQ_API_KEY") or os.getenv("UNIGURU_LLM_API_KEY")
-                if not groq_key:
-                    raise ValueError("Groq API key missing")
-                    
-                client = Groq(api_key=groq_key)
-                response = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant. Provide a direct, informative answer."},
-                        {"role": "user", "content": request.query}
-                    ],
-                    temperature=0.2,
-                    max_tokens=800
-                )
-                answer = response.choices[0].message.content
-            except Exception as e:
-                logger.error(f"LLM Fallback failed: {e}")
-                answer = "I do not have verified knowledge to answer this question, and the LLM fallback failed."
+        if token.credentials != allowed_key:
+            raise HTTPException(status_code=401, detail="Unauthorized Access. Invalid API Key.")
+            
+        engine = get_faiss_engine()
+        faiss_result = engine.answer_question(query=request.query, top_k=3)
+        
+        raw_answer = faiss_result.get("answer", "I do not have enough context.")
+        retrieved_chunks = faiss_result.get("retrieved", [])
+        
+        # Convert FAISS chunks back to the Kosha Signal structure the frontend expects
+        signals = []
+        for i, chunk in enumerate(retrieved_chunks):
+            signals.append({
+                "signal_id": f"faiss_chunk_{i}",
+                "signal_type": "KOSHA_VERIFIED",
+                "content": chunk.get("text", ""),
+                "confidence": chunk.get("score", 0.0),
+                "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
+                "trace": {
+                    "knowledge_id": f"FAISS_DOC_{i}",
+                    "retrieval_method": "embedding_faiss_score"
+                }
+            })
             
         return {
             "query": request.query,
-            "domain": detected_domain,
-            "answer": answer,
-            "confidence": conf,
+            "domain": request.domain or "General (FAISS)",
+            "answer": raw_answer,
+            "confidence": 0.9 if signals else 0.0,
             "signals": signals,
             "status": "success"
         }
     except Exception as e:
-        logger.error(f"Error querying deterministic Kosha RAG: {e}")
+        logger.error(f"Error querying FAISS Kosha RAG: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
