@@ -1615,7 +1615,20 @@ def new_rag_endpoint(request: NewRagRequest, token: HTTPAuthorizationCredentials
         signals = []
 
         if is_render:
-            raw_answer = "Render Cloud Mode Active: Massive Local FAISS Database Bypassed to prevent RAM crash."
+            from groq import Groq
+            try:
+                client = Groq(api_key=os.getenv("GROQ_API_KEY") or os.getenv("UNIGURU_LLM_API_KEY"))
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[
+                        {"role": "system", "content": "You are UniGuru, a highly intelligent AI assistant. A user is asking a question from a cloud environment where local databases are offline. Answer their question brilliantly using your own knowledge."},
+                        {"role": "user", "content": request.query}
+                    ],
+                    temperature=0.7
+                )
+                raw_answer = completion.choices[0].message.content
+            except Exception as e:
+                raw_answer = f"Render Cloud Mode Active: Massive FAISS Database Bypassed. (Groq LLM also failed: {str(e)})"
         else:
             engine = get_faiss_engine()
             faiss_result = engine.answer_question(query=request.query, top_k=3)
@@ -1733,7 +1746,20 @@ def new_query_endpoint(request: CoreRequest, token: HTTPAuthorizationCredentials
                     }
                 })
         else:
-            raw_answer = "Render Cloud Mode Active: Massive Local FAISS Database Bypassed to prevent RAM crash."
+            from groq import Groq
+            try:
+                client = Groq(api_key=os.getenv("GROQ_API_KEY") or os.getenv("UNIGURU_LLM_API_KEY"))
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=[
+                        {"role": "system", "content": "You are UniGuru, a highly intelligent AI assistant. A user is asking a question from a cloud environment where local databases are offline. Answer their question brilliantly using your own knowledge."},
+                        {"role": "user", "content": request.query}
+                    ],
+                    temperature=0.7
+                )
+                raw_answer = completion.choices[0].message.content
+            except Exception as e:
+                raw_answer = f"Render Cloud Mode Active: Massive FAISS Database Bypassed. (Groq LLM also failed: {str(e)})"
             
         # Introduce External System Call (Samachar)
         signals.append(mock_samachar_system(request.query))
