@@ -1,54 +1,109 @@
-# UniGuru
+# UniGuru v2 - Unified Kosha Architectures
 
-UniGuru is a demo-safe AI backend stack with deterministic KB routing, LLM fallback, and guaranteed response behavior.
+UniGuru v2 is a decoupled, deterministic RAG system utilizing FastAPI (Backend) and React/Vite (Frontend). It features a strictly domain-authenticated, deterministic Kosha retrieval pipeline (`/new_rag`) avoiding LLM hallucination during context fetching, while smartly falling back to a fine-tuned Groq LLM model when no hard data exists.
 
-## 3-Step Startup
+---
 
-1. Configure environment values from [`config/env/.env.example`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/config/env/.env.example).
-2. Start backend:
-   - Windows: `powershell -ExecutionPolicy Bypass -File run/run_backend.ps1`
-   - Linux/macOS: `bash run/run_backend.sh`
-3. Start node middleware:
-   - Windows: `powershell -ExecutionPolicy Bypass -File run/run_node.ps1`
-   - Linux/macOS: `bash run/run_node.sh`
+## 🚀 How to Run the Full Stack
 
-## Validate End-to-End
+You will need to open **two** separate terminal windows to run both the frontend and backend servers simultaneously.
 
-Run:
+### 1. Run the Backend Server (FastAPI)
+1. Open a terminal and navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Activate the virtual environment:
+   - Windows: `.\venv\Scripts\activate`
+   - Mac/Linux: `source venv/bin/activate`
+3. Run the backend service:
+   ```bash
+   python main.py
+   ```
+*(This starts your backend API locally on `http://0.0.0.0:8000`)*
 
-`python test/run_phase8_validation.py`
+### 2. Run the Frontend Server (Vite/React)
+1. Open a second terminal window and navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install Node dependencies (if you haven't recently):
+   ```bash
+   npm install
+   ```
+3. Start the Vite server:
+   ```bash
+   npm run dev
+   ```
+*(This starts the user interface locally, usually at `http://localhost:5173`. Open this URL in your web browser.)*
 
-Output:
+---
 
-[`demo_logs/phase8_test_outputs.json`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/demo_logs/phase8_test_outputs.json)
+## 🧠 Using the `/new_rag` Endpoint
 
-Additional failure-injection proof:
+The new RAG system (`/new_rag`) uses our **Kosha** architecture. It automatically pulls from `backend/data/kosha/*.json` payloads.
 
-`python test/run_demo_safety_proof.py`
+You can query the RAG system directly using a `POST` request to `http://localhost:8000/new_rag`.
 
-Output:
+### Example Query Request
+The system will **automatically detect the domain** from the query context (e.g., Agriculture, Urban, Infrastructure, Water / Rivers) if you do not strictly provide one!
 
-[`demo_logs/demo_safety_proof.json`](/c:/Users/Yass0/OneDrive/Desktop/TASK14/demo_logs/demo_safety_proof.json)
+```json
+{
+  "query": "reduce water consumption via drip irrigation"
+}
+```
 
-## Canonical Flow
+*Optional Explicit Domain Routing:*
+```json
+{
+  "query": "reduce water consumption via drip irrigation",
+  "domain": "Agriculture"
+}
+```
 
-`UI -> Node (/api/v1/chat/query) -> Python (/ask) -> ConversationRouter -> KB or ROUTE_LLM -> Safe fallback`
+### Example Query Response
+If the system organically locates contextual data within Kosha, it returns a deterministic matched `signal`:
 
-Safe fallback phrase:
+```json
+{
+  "query": "reduce water consumption via drip irrigation",
+  "domain": "Agriculture",
+  "answer": "Based on verified Kosha records, Drip irrigation reduces water consumption by up to 60% compared to traditional flood irrigation techniques in arid regions.",
+  "confidence": 0.92,
+  "signals": [
+    {
+      "signal_id": "sig_cb32f91a100",
+      "signal_type": "KOSHA_VERIFIED",
+      "content": "Drip irrigation reduces water consumption by up to 60% compared to traditional flood irrigation techniques in arid regions.",
+      "confidence": 0.92,
+      "source": "Water Conservation Handbook",
+      "trace": {
+        "knowledge_id": "K_AGRI_002",
+        "retrieval_method": "deterministic_keyword_tag_match",
+        "mapped_domain": "Agriculture"
+      }
+    }
+  ],
+  "status": "success"
+}
+```
 
-`I am still learning this topic, but here is a basic explanation...`
+### Automatic LLM Fallback
+If the Kosha engine fails to find any deterministic context for a query (e.g., `"how fast does light travel?"`), it will dynamically trigger a fallback to the external LLM (`llama-3.3-70b-versatile` via Groq) to intelligently attempt to answer the user query out-of-bounds:
 
-## Repository Map
+```json
+{
+  "query": "how fast does light travel?",
+  "domain": null,
+  "answer": "Light travels at approximately 299,792 kilometers per second in a vacuum.",
+  "confidence": 0.0,
+  "signals": [],
+  "status": "success"
+}
+```
 
-- `backend/`: Python FastAPI + UniGuru engine
-  - `uniguru/router/`, `uniguru/service/`, `uniguru/core/`, `uniguru/integrations/`
-- `node-backend/`: middleware
-  - `src/routes/`, `src/services/`, `src/server.js`
-- `frontend/`: client app
-- `run/`: canonical startup scripts
-- `test/`: executable validation scripts
-- `tests/`: test index
-- `config/`: environment and runtime settings
-- `docs/architecture/`: system design docs
-- `docs/handover/`: onboarding and failure guides
-- `docs/reports/`: evidence and historical reports
+---
+
+## 📁 Data Management
+All JSON entry files you want queried must adhere to the Pydantic Kosha Schema (requiring `knowledge_id`, `domain`, `content`, `tags`, etc.). Just dump your data files inside `backend/data/kosha/` and the FastApi server loads them continuously.
