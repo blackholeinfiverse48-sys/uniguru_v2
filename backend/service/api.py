@@ -1645,6 +1645,127 @@ def new_rag_endpoint(request: NewRagRequest, token: HTTPAuthorizationCredentials
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==============================================================
+# NEW: 6-PHASE CORE UNIFIED PIPELINE (/new_query)
+# ==============================================================
+
+class CoreRequest(BaseModel):
+    request_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    intent: str = Field(default="information_retrieval")
+    context: Dict[str, Any] = Field(default_factory=dict)
+    required_outputs: list = Field(default=["signals", "final_answer"])
+    query: str
+
+def mock_samachar_system(query: str):
+    return {
+        "signal_id": f"EXT_MOCK_{uuid.uuid4().hex[:8]}",
+        "signal_type": "EXTERNAL_SAMACHAR",
+        "content": f"Live external news stub monitoring real-time updates for: {query}",
+        "confidence": 0.85,
+        "source": "Mock Samachar Real-Time API",
+        "trace": {
+            "retrieval_method": "external_api_call",
+            "mapped_domain": "News",
+            "step": "samachar_fetch"
+        }
+    }
+
+def log_to_bucket(event_id, query, signals_used, final_answer, confidence, system_path):
+    import os, json
+    log_file = os.path.join(os.path.dirname(__file__), "..", "data", "bucket_logs.json")
+    try:
+        if not os.path.exists(log_file):
+            with open(log_file, "w") as f:
+                json.dump([], f)
+        with open(log_file, "r+") as f:
+            logs = json.load(f)
+            logs.append({
+                "event_id": event_id,
+                "query": query,
+                "signals_used": signals_used,
+                "final_answer": final_answer,
+                "confidence": float(confidence),
+                "system_path": system_path,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            f.seek(0)
+            json.dump(logs, f, indent=4)
+    except Exception as e:
+        logger.error(f"Bucket logging failed: {e}")
+
+@app.post(
+    "/new_query",
+    tags=["Core Intelligence"],
+    summary="Phase 6 Core Unified Signal Pipeline"
+)
+def new_query_endpoint(request: CoreRequest, token: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    try:
+        import os
+        allowed_key = os.getenv("EXTERNAL_API_SECRET_KEY", "uniguru_secret_123")
+        if token.credentials != allowed_key:
+            raise HTTPException(status_code=401, detail="Unauthorized Access.")
+            
+        # Fetch Base Signals
+        engine = get_faiss_engine()
+        faiss_result = engine.answer_question(query=request.query, top_k=5)
+        raw_answer = faiss_result.get("answer", "No answer found")
+        retrieved_chunks = faiss_result.get("retrieved", [])
+        
+        signals = []
+        for i, chunk in enumerate(retrieved_chunks):
+            signals.append({
+                "signal_id": f"faiss_chunk_{i}",
+                "signal_type": "KOSHA_VERIFIED",
+                "content": chunk.get("text", ""),
+                "confidence": chunk.get("score", 0.0),
+                "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
+                "trace": {
+                    "knowledge_id": f"FAISS_DOC_{i}",
+                    "retrieval_method": "embedding_faiss_score",
+                    "step": "vector_fetch"
+                }
+            })
+            
+        # Introduce External System Call (Samachar)
+        signals.append(mock_samachar_system(request.query))
+        
+        # Aggregation Logic: Filter < 0.5 & Rank High to Low
+        filtered_signals = [s for s in signals if s["confidence"] >= 0.5]
+        filtered_signals.sort(key=lambda x: x["confidence"], reverse=True)
+        
+        final_confidence = filtered_signals[0]["confidence"] if filtered_signals else 0.0
+        
+        # Building the final structured payload
+        response_payload = {
+            "final_answer": raw_answer if final_confidence > 0 else "System locked. All signals fell below 0.5 threshold requirement.",
+            "supporting_signals": filtered_signals,
+            "confidence": float(final_confidence),
+            "reasoning_trace": [
+                f"Received request intent: {request.intent}",
+                f"Gathered {len(signals)} raw signals (including Samachar mock)",
+                f"Filtered to {len(filtered_signals)} mathematically safe signals (>0.5)",
+                f"Ranked deterministically and generated final trace."
+            ],
+            "status": "success"
+        }
+        
+        # Log to structural bucket
+        log_to_bucket(
+            event_id=request.request_id,
+            query=request.query,
+            signals_used=len(filtered_signals),
+            final_answer=response_payload["final_answer"],
+            confidence=final_confidence,
+            system_path="/new_query_6phase_pipeline"
+        )
+        
+        return response_payload
+        
+    except Exception as e:
+        logger.error(f"Error in Core Query pipeline: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get(
     "/user/logout",
     tags=["Authentication"],
