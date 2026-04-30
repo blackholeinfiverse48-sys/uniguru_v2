@@ -93,8 +93,12 @@ class NewRAGEngine:
         
         system_prompt = (
             "You are an intelligent knowledge assistant. "
-            "First, TRY to answer the question using the provided context."
-            "If the context is unrelated, ignore the context and use your own knowledge to answer the question dynamically."
+            "Your Answer MUST be constructed ONLY from the provided context signals.\n"
+            "Rules:\n"
+            "1. No hallucination whatsoever\n"
+            "2. No extra information outside the provided text\n"
+            "3. Only use signal-derived facts\n"
+            "If the context cannot answer the question, simply reply 'I don't know'."
         )
         user_prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
         

@@ -39,55 +39,109 @@ class KoshaRetriever:
         """
         Deterministic Keyword + Tag matched retrieval. NO embeddings.
         """
+        STOPWORDS = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "if",
+            "then",
+            "else",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "to",
+            "of",
+            "in",
+            "on",
+            "at",
+            "by",
+            "for",
+            "from",
+            "as",
+            "with",
+            "about",
+            "into",
+            "over",
+            "under",
+            "who",
+            "whom",
+            "whose",
+            "what",
+            "which",
+            "when",
+            "where",
+            "why",
+            "how",
+        }
+
         query_normalized = query.lower()
-        query_words = set(re.findall(r'\b\w+\b', query_normalized))
-        
-        scored_entries = []
+        raw_query_terms = re.findall(r"\b\w+\b", query_normalized)
+        query_words = {t for t in raw_query_terms if len(t) > 2 and t not in STOPWORDS}
         
         if not domain:
             domain = self._detect_domain(query)
-            
+
+        scored_entries: List[tuple[float, KoshaEntry]] = []
+
         for entry in self.entries:
-            # Domain-aware filtering
-            if domain and entry.domain != domain:
-                continue
-                
-            # Scoring logic (Deterministic)
-            score = 0.0
-            
-            # Tag match (high weight)
-            matched_tags = [tag for tag in entry.tags if tag.lower() in query_normalized]
-            if matched_tags:
-                score += 0.5 + (0.1 * len(matched_tags))
-                
-            # Content keyword overlap (exact word matching)
-            content_words = set(re.findall(r'\b\w+\b', entry.content.lower()))
+            # Tag match score: proportion of query terms covered by this entry's tags.
+            normalized_tags = []
+            for tag in entry.tags or []:
+                tag_norm = str(tag).lower().strip()
+                if len(tag_norm) > 2 and tag_norm not in STOPWORDS:
+                    normalized_tags.append(tag_norm)
+
+            matched_tags = [t for t in normalized_tags if t in query_words]
+            tag_match_score = 0.0
+            if query_words:
+                # Value in [0..1]; prevents "the" from dominating tag confidence.
+                tag_match_score = len(matched_tags) / len(query_words)
+
+            # Content similarity score: exact word overlap between query and entry.content.
+            content_raw_terms = re.findall(r"\b\w+\b", str(entry.content).lower())
+            content_words = {t for t in content_raw_terms if len(t) > 2 and t not in STOPWORDS}
             overlap = query_words.intersection(content_words)
-            if overlap:
-                score += (len(overlap) / max(len(query_words), 1)) * 0.4
-                
-            if score > 0:
-                scored_entries.append((score, entry))
-                
-        # Sort descending deterministically by score, then timestamp, then knowledge_id
+            similarity_score = 0.0
+            if query_words:
+                similarity_score = len(overlap) / len(query_words)
+
+            # Kosha confidence rule: similarity_score OR tag_match_score.
+            base_match_score = max(tag_match_score, similarity_score)
+
+            # Optional tiny boost when domain matches (does not hard-filter).
+            domain_boost = 0.05 if domain and entry.domain == domain else 0.0
+            match_score = min(1.0, base_match_score + domain_boost)
+
+            if match_score > 0 and str(entry.content).strip():
+                scored_entries.append((match_score, entry))
+
+        # Sort descending deterministically by match_score, then timestamp, then knowledge_id.
         scored_entries.sort(key=lambda x: (x[0], x[1].timestamp, x[1].knowledge_id), reverse=True)
-        
-        signals = []
-        for rank, (score, entry) in enumerate(scored_entries):
-            # Phase 4 Conversion
-            sig_id = hashlib.md5(f"{entry.knowledge_id}_{score}".encode()).hexdigest()[:12]
-            signal = {
-                "signal_id": f"sig_{sig_id}",
-                "signal_type": "KOSHA_VERIFIED",
-                "content": entry.content,
-                "confidence": min(1.0, score * entry.confidence), # Combining retrieval score and baseline entry confidence
-                "source": entry.source,
-                "trace": {
-                    "knowledge_id": entry.knowledge_id,
-                    "retrieval_method": "deterministic_keyword_tag_match",
-                    "mapped_domain": domain or "global"
+
+        signals: List[Dict[str, Any]] = []
+        for rank, (match_score, entry) in enumerate(scored_entries):
+            signal_id_hash = hashlib.md5(f"{entry.knowledge_id}_{entry.source}_{rank}".encode()).hexdigest()[:12]
+            confidence = float(min(1.0, max(match_score, 0.0)))
+
+            signals.append(
+                {
+                    "signal_id": f"signal_{signal_id_hash}",
+                    "type": "string",
+                    "content": entry.content,
+                    "source": entry.source,  # file name only
+                    "confidence": confidence,
+                    "trace": {
+                        "knowledge_id": entry.source,  # file name only
+                        "method": "kosha_retrieval",
+                    },
                 }
-            }
-            signals.append(signal)
-            
+            )
+
         return signals, domain

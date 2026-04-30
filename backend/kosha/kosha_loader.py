@@ -45,11 +45,6 @@ class KoshaLoader:
             for raw_entry in data_list:
                 try:
                     entry = KoshaEntry(**raw_entry)
-                    # Validate domain constraint explicitly
-                    if entry.domain not in ["Agriculture", "Urban", "Water / Rivers", "Infrastructure"]:
-                        logger.warning(f"Rejecting entry {entry.knowledge_id} due to invalid domain: {entry.domain}")
-                        continue
-                        
                     self.entries.append(entry)
                 except Exception as e:
                     logger.warning(f"Rejecting entry: Schema validation failed. {e}")
